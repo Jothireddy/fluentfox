@@ -1,6 +1,6 @@
 // superAdminApi.jsx
 
-const API_BASE = "http://34.93.25.2:3001";
+const API_BASE = "https://34.93.25.2:3001";
 
 // ------- TOKEN STORAGE -------
 let token = localStorage.getItem("sa_token");
