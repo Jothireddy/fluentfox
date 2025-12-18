@@ -1,4 +1,4 @@
-const API_BASE = "https://34.93.25.2:3001";
+const API_BASE = "https://api.fluentfox.in";
 
 /**
  * @typedef {Object} User
