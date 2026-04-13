@@ -699,7 +699,7 @@ function CreditsTab({ user, onRefresh, onSwitchTab }) {
     setMsg(null);
 
     // ── TEST MODE: instant credits, no Razorpay ──
-    const isTestMode = true; // ← set to false once Razorpay keys are live
+    const isTestMode = false; // ← set to false once Razorpay keys are live
 
     if (isTestMode) {
       try {
