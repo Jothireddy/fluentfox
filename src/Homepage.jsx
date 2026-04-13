@@ -1,1097 +1,997 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchActivePlans } from "./api3";
 
-const Homepage = () => {
-  const rotatingWords = ["confident", "clear", "calm"];
-  const [wordIndex, setWordIndex] = useState(0);
-  const [openFaq, setOpenFaq] = useState(0);
-  const [viewMode, setViewMode] = useState("before");
-  const navigate = useNavigate();
+const ORANGE = "#ff4b00";
+const CREAM = "#fdf8f0";
+const DARK = "#0d0d0d";
+const TEXT = "#111111";
+const FLUENTFOX_LOGO = "public/company_logo.webp";
+const SIMPLEICONS = (slug) => `https://cdn.simpleicons.org/${slug}/FFFFFF`;
 
-  const faqItems = [
-    {
-      q: "How do I get the app and pricing?",
-      a: "Right now FluentFox is available by request only. Use the access & pricing page to tell us a bit about your use case, and we’ll email you access details and pricing options for individuals or teams."
-    },
-    {
-      q: "What is FluentFox?",
-      a: "FluentFox is an AI-powered tool that helps you practice speaking clear, confident interview answers in real time. It listens to questions and shows you strong, structured responses on your screen."
-    },
-    {
-      q: "How does FluentFox help during interviews?",
-      a: "When a question is asked, FluentFox instantly prepares a clear answer tailored to your resume and the job description, so you always know what to say and how to say it."
-    },
-    {
-      q: "Does FluentFox store my voice?",
-      a: "No. Your practice audio stays only in your local session and is not stored or used for training."
-    },
-    {
-      q: "Can I customize answers for different roles?",
-      a: "Yes. By uploading your resume and the job description, FluentFox adapts responses to match the expectations, skills, and responsibilities of that specific role."
-    },
-    {
-      q: "Will more coaching features be added?",
-      a: "Yes. More guidance tools, themes, and smart coaching features are planned, including deeper feedback on tone, pacing, and answer quality."
-    }
-  ];
+const companies = [
+  { name: "Google", slug: "google" },
+  { name: "Amazon", slug: "amazon" },
+  { name: "Microsoft", slug: "microsoft" },
+  { name: "Meta", slug: "meta" },
+  { name: "Apple", slug: "apple" },
+  { name: "Netflix", slug: "netflix" },
+  { name: "Stripe", slug: "stripe" },
+  { name: "Shopify", slug: "shopify" },
+  { name: "Adobe", slug: "adobe" },
+  { name: "Uber", slug: "uber" },
+  { name: "Notion", slug: "notion" },
+  { name: "Airbnb", slug: "airbnb" },
+  { name: "Figma", slug: "figma" },
+  { name: "Atlassian", slug: "atlassian" },
+  { name: "Salesforce", slug: "salesforce" },
+  { name: "LinkedIn", slug: "linkedin" },
+];
 
-  useEffect(() => {
-    const interval = setInterval(
-      () => setWordIndex((i) => (i + 1) % rotatingWords.length),
-      2200
-    );
-    return () => clearInterval(interval);
-  }, []);
+const testimonials = [
+  {
+    name: "Ananya M.",
+    handle: "@ananya_pm",
+    role: "Product Analyst · Bangalore",
+    initials: "AM",
+    accent: "#fff3ee",
+    text: "The real-time preview stopped me freezing completely. It felt like having a calm second brain that never panics — even when I do. Two offers in under a month.",
+  },
+  {
+    name: "James K.",
+    handle: "@james_dev",
+    role: "Software Engineer · London",
+    initials: "JK",
+    accent: "#f0f4ff",
+    text: "Before this, I could answer the question in my head but not under pressure. FluentFox gave me structure instantly, so I sounded clear, sharp, and composed.",
+  },
+  {
+    name: "Sara L.",
+    handle: "@sara_ux",
+    role: "UX Designer → PM · Dubai",
+    initials: "SL",
+    accent: "#fff3ee",
+    text: "Switching careers usually made me sound defensive. This made my story feel deliberate and confident. The best part was how naturally it fit my resume and the role.",
+  },
+  {
+    name: "Rahul V.",
+    handle: "@rahul_codes",
+    role: "Frontend Engineer · Hyderabad",
+    initials: "RV",
+    accent: "#eefbf2",
+    text: "I used to ramble when a technical question got difficult. Now the answer appears fast enough that I stay in rhythm and actually finish with a point.",
+  },
+  {
+    name: "Priya S.",
+    handle: "@priya_designs",
+    role: "Designer · Pune",
+    initials: "PS",
+    accent: "#fff7e8",
+    text: "The experience feels premium end-to-end. The interface is calm, the prompts are clear, and the answers sound like me — only better organized.",
+  },
+  {
+    name: "David L.",
+    handle: "@david_pm",
+    role: "Program Manager · Toronto",
+    initials: "DL",
+    accent: "#f8f0ff",
+    text: "What surprised me most was how role-aware it felt. I changed the job description and immediately got different examples, tone, and framing.",
+  },
+  {
+    name: "Kiran R.",
+    handle: "@kiran_ai",
+    role: "AI Student · Chennai",
+    initials: "KR",
+    accent: "#ecfbff",
+    text: "I usually blank out on behavioral questions. This gave me clean STAR answers I could speak confidently, and I never felt like I was reading something robotic.",
+  },
+  {
+    name: "Meera T.",
+    handle: "@meera_ui",
+    role: "UI Engineer · Mumbai",
+    initials: "MT",
+    accent: "#fff0f0",
+    text: "The speed is the real difference. A slow assistant breaks your flow, but this stayed fast enough that I could keep eye contact, breathe, and sound composed.",
+  },
+  {
+    name: "Alex B.",
+    handle: "@alex_eng",
+    role: "Data Engineer · Berlin",
+    initials: "AB",
+    accent: "#eef6ff",
+    text: "It does not feel like a gimmick. It feels like a serious product with a serious workflow. My answers felt concise and well thought out.",
+  },
+];
+
+const faqs = [
+  {
+    q: "How does FluentFox work during a live interview?",
+    a: "FluentFox runs beside your call and listens through your microphone. It detects questions in real time and turns them into structured answers fast enough to keep the conversation moving naturally.",
+  },
+  {
+    q: "Is my audio stored or shared anywhere?",
+    a: "No. Session audio is processed in real time and never stored on our servers. It is not shared with third parties and is not used for training.",
+  },
+  {
+    q: "What if my session ends before 10 minutes?",
+    a: "Your credit is refunded automatically if the session ends early. No support ticket or manual request is needed.",
+  },
+  {
+    q: "Can I customise it for different roles?",
+    a: "Yes. Upload a different resume or job description for each session and the answer style adapts to that exact role, company, and seniority.",
+  },
+  {
+    q: "Which platforms does it work with?",
+    a: "It works alongside any call platform because it runs in a separate window. Zoom, Google Meet, Microsoft Teams, Webex, phone calls, and more are supported.",
+  },
+  {
+    q: "What interview types does it cover?",
+    a: "It handles behavioral, competency-based, technical, situational, and open-ended interview questions across roles and industries.",
+  },
+];
+
+const platforms = ["Zoom", "Google Meet", "Microsoft Teams", "Webex", "Phone calls", "Amazon Chime"];
+const paymentMethods = ["Visa", "Mastercard", "Amex", "Apple Pay", "Google Pay", "UPI", "PhonePe", "Razorpay"];
+
+const Pill = ({ children, bg = "rgba(255,75,0,0.12)", color = ORANGE }) => (
+  <span
+    style={{
+      display: "inline-block",
+      fontSize: 10,
+      fontWeight: 800,
+      letterSpacing: "0.14em",
+      textTransform: "uppercase",
+      background: bg,
+      color,
+      borderRadius: 999,
+      padding: "4px 12px",
+      marginBottom: 14,
+    }}
+  >
+    {children}
+  </span>
+);
+
+function BrandLogo({ src, name, size = 28, className = "" }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
 
   return (
-    <div className="bg-[#ff4b00] text-white overflow-x-hidden">
-      {/* TEXT + EXTRA ANIMATION STYLES */}
-      <style>{`
-        @keyframes titleGlow {
-          0% {
-            opacity: 0;
-            transform: translateY(32px) scale(0.96);
-            filter: blur(6px);
-          }
-          60% {
-            opacity: 1;
-            transform: translateY(0) scale(1.02);
-            filter: blur(0);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            filter: blur(0);
-          }
-        }
-        .animate-titleGlow {
-          animation: titleGlow 1.1s ease-out forwards;
-        }
+    <img
+      src={src}
+      alt={name}
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(true)}
+      className={className}
+      style={{
+        width: size,
+        height: size,
+        objectFit: "contain",
+        flexShrink: 0,
+        display: "block",
+        filter: "drop-shadow(0 4px 10px rgba(0,0,0,.12))",
+      }}
+    />
+  );
+}
 
-        @keyframes fadeSlideWord {
-          0% {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          15% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-          70% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-6px);
-          }
-        }
-        .animate-fadeSlideWord {
-          animation: fadeSlideWord 2.2s ease-in-out;
-        }
+function PricingCard({ plan, highlight, index }) {
+  const nav = useNavigate();
+  const price = Number(plan?.price_inr ?? 0);
+  const credits = Number(plan?.credits ?? 1);
+  const perSession = credits > 0 ? Math.round(price / credits) : null;
 
-        @keyframes shimmer {
-          0% {
-            background-position: -200% 0;
-          }
-          100% {
-            background-position: 200% 0;
-          }
-        }
-        .shimmer-text {
-          background-image: linear-gradient(
-            120deg,
-            rgba(255,255,255,0.15),
-            rgba(255,255,255,0.8),
-            rgba(255,255,255,0.15)
-          );
-          background-size: 200% 100%;
-          -webkit-background-clip: text;
-          background-clip: text;
-          color: transparent;
-          animation: shimmer 3s infinite linear;
-        }
+  return (
+    <div
+      style={{
+        background: highlight ? "#fff" : "rgba(255,255,255,0.08)",
+        border: `${highlight ? "2px" : "0.5px"} solid ${highlight ? "#fff" : "rgba(255,255,255,0.18)"}`,
+        borderRadius: 22,
+        padding: "24px 22px",
+        position: "relative",
+        transition: "transform .22s ease, box-shadow .22s ease, border-color .22s ease",
+        boxShadow: highlight ? "0 18px 45px rgba(0,0,0,0.14)" : "none",
+        animation: "floatCard 5s ease-in-out infinite",
+        animationDelay: `${index * 0.15}s`,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-6px)";
+        e.currentTarget.style.boxShadow = "0 24px 50px rgba(0,0,0,0.22)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "none";
+        e.currentTarget.style.boxShadow = highlight ? "0 18px 45px rgba(0,0,0,0.14)" : "none";
+      }}
+    >
+      {highlight && (
+        <div
+          style={{
+            position: "absolute",
+            top: -12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: DARK,
+            color: "#fff",
+            fontSize: 9,
+            fontWeight: 800,
+            letterSpacing: ".14em",
+            textTransform: "uppercase",
+            borderRadius: 999,
+            padding: "5px 14px",
+            whiteSpace: "nowrap",
+            boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+          }}
+        >
+          Best value
+        </div>
+      )}
 
-        @keyframes floatSlow {
-          0% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-10px);
-          }
-          100% {
-            transform: translateY(0);
-          }
-        }
-        .animate-floatSlow {
-          animation: floatSlow 7s ease-in-out infinite;
-        }
+      <p
+        style={{
+          fontSize: 10,
+          fontWeight: 800,
+          letterSpacing: ".16em",
+          textTransform: "uppercase",
+          color: highlight ? "#999" : "rgba(255,255,255,0.45)",
+          marginBottom: 10,
+        }}
+      >
+        {plan?.name ?? "Plan"}
+      </p>
 
-        @keyframes pulseSoft {
-          0% {
-            box-shadow: 0 0 0 0 rgba(255,255,255,0.45);
-          }
-          70% {
-            box-shadow: 0 0 0 18px rgba(255,255,255,0);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(255,255,255,0);
-          }
-        }
-        .cta-pulse {
-          animation: pulseSoft 2.6s ease-out infinite;
-        }
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 5, marginBottom: 5 }}>
+        <span style={{ fontFamily: "'Fraunces', serif", fontSize: 42, fontWeight: 900, lineHeight: 1, color: highlight ? "#111" : "#fff" }}>
+          ₹{price.toLocaleString()}
+        </span>
+      </div>
 
-        @keyframes logoMarquee {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
-        }
-        .logo-marquee {
-          animation: logoMarquee 26s linear infinite;
-        }
+      <p style={{ fontSize: 13, fontWeight: 600, color: highlight ? "#777" : "rgba(255,255,255,0.58)", marginBottom: 4 }}>
+        {credits} session{credits > 1 ? "s" : ""}
+        {perSession != null && <span style={{ color: highlight ? ORANGE : "#ffb78a", fontWeight: 700 }}> · ₹{perSession}/session</span>}
+      </p>
 
-        @keyframes subtleGlow {
-          0% {
-            box-shadow: 0 0 0 0 rgba(0,0,0,0.4);
-          }
-          50% {
-            box-shadow: 0 18px 40px rgba(0,0,0,0.7);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(0,0,0,0.4);
-          }
-        }
-        .card-glow {
-          animation: subtleGlow 8s ease-in-out infinite;
-        }
-      `}</style>
+      <p style={{ fontSize: 13, lineHeight: 1.65, color: highlight ? "#888" : "rgba(255,255,255,0.44)", marginBottom: 20, marginTop: 10 }}>
+        {plan?.description || "Pay only when you need interview support. No subscription, no long-term commitment."}
+      </p>
 
-      {/* HERO CONTENT (fills full screen) */}
-      <section className="px-4 sm:px-6 lg:px-8 pt-10 sm:pt-12 pb-16 min-h-screen flex items-center">
-        <div className="w-full max-w-6xl mx-auto grid gap-10 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,2.8fr)] items-center">
-          {/* LEFT: TEXT */}
-          <div className="space-y-6 max-w-xl mx-auto lg:mx-0 animate-titleGlow">
-            <p className="uppercase tracking-[0.18em] text-[10px] sm:text-[11px] font-semibold shimmer-text">
-              REAL‑TIME AI INTERVIEW PRACTICE
-            </p>
+      <button
+        onClick={() => nav("/access-pricing")}
+        style={{
+          width: "100%",
+          border: "none",
+          borderRadius: 999,
+          padding: "13px 0",
+          fontFamily: "'Plus Jakarta Sans', sans-serif",
+          fontSize: 12,
+          fontWeight: 800,
+          letterSpacing: ".09em",
+          textTransform: "uppercase",
+          cursor: "pointer",
+          background: highlight ? ORANGE : "rgba(255,255,255,0.15)",
+          color: "#fff",
+          transition: "opacity .15s ease, transform .15s ease",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.opacity = ".84";
+          e.currentTarget.style.transform = "translateY(-1px)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.opacity = "1";
+          e.currentTarget.style.transform = "translateY(0)";
+        }}
+      >
+        Get started
+      </button>
+    </div>
+  );
+}
 
-            {/* Animated word in heading */}
-            <h2 className="text-[clamp(1.6rem,4vw,2.4rem)] font-black leading-tight">
-              Practice speaking{" "}
-              <span className="relative inline-block min-w-[6ch]">
-                <span
-                  key={rotatingWords[wordIndex]}
-                  className="inline-block animate-fadeSlideWord bg-gradient-to-r from-[#fff5e6] via-white to-[#ffd2b3] bg-clip-text text-transparent"
-                >
-                  {rotatingWords[wordIndex]}
-                </span>
+function SectionReveal({ children, delay = 0, className = "" }) {
+  return (
+    <div className={className} style={{ animation: `riseUp .75s ease both`, animationDelay: `${delay}s` }}>
+      {children}
+    </div>
+  );
+}
+
+export default function Homepage() {
+  const nav = useNavigate();
+  const words = useMemo(() => ["confident", "clear", "calm"], []);
+  const [wi, setWi] = useState(0);
+  const [faq, setFaq] = useState(-1);
+  const [mode, setMode] = useState("before");
+  const [plans, setPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [heroShift, setHeroShift] = useState({ x: 0, y: 0 });
+
+  const doubledCompanies = useMemo(() => [...companies, ...companies], []);
+
+  useEffect(() => {
+    const t = window.setInterval(() => setWi((i) => (i + 1) % words.length), 2200);
+    return () => window.clearInterval(t);
+  }, [words.length]);
+
+  useEffect(() => {
+    let mounted = true;
+    setPlansLoading(true);
+    fetchActivePlans()
+      .then((data) => {
+        if (!mounted) return;
+        if (process.env.NODE_ENV !== "production") console.log("Plans fetched:", data);
+        setPlans(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        if (process.env.NODE_ENV !== "production") console.error("Error fetching plans:", err);
+        if (mounted) setPlans([]);
+      })
+      .finally(() => {
+        if (mounted) setPlansLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const css = `
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,700;9..144,900&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: ${DARK}; }
+    .hp {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: ${ORANGE};
+      color: #fff;
+      overflow-x: hidden;
+      position: relative;
+    }
+    .hp::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 18% 15%, rgba(255,255,255,.08), transparent 26%),
+        radial-gradient(circle at 82% 12%, rgba(255,255,255,.06), transparent 22%),
+        radial-gradient(circle at 72% 84%, rgba(0,0,0,.10), transparent 26%);
+      pointer-events: none;
+      z-index: 0;
+      animation: bgPulse 12s ease-in-out infinite;
+    }
+    .hp > * { position: relative; z-index: 1; }
+    .hp h1, .hp h2 { font-family: 'Fraunces', serif; font-weight: 900; line-height: 1.06; letter-spacing: -0.02em; }
+    .hp h1 { font-size: clamp(2.1rem, 4.8vw, 4rem); }
+    .hp h2 { font-size: clamp(1.7rem, 3.2vw, 2.6rem); }
+
+    .sec { padding: clamp(48px, 6vw, 72px) clamp(18px, 4vw, 40px); }
+    .inner { max-width: 1160px; margin: 0 auto; }
+    .sh { display: grid; grid-template-columns: 1fr 1.2fr; gap: 22px; align-items: end; margin-bottom: 28px; }
+    @media (max-width: 780px) { .sh { grid-template-columns: 1fr; gap: 12px; } }
+
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: clamp(44px, 6vw, 72px) clamp(18px, 4vw, 40px);
+    }
+    .hero-g {
+      max-width: 1160px;
+      margin: 0 auto;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1.02fr;
+      gap: 36px;
+      align-items: center;
+    }
+    @media (max-width: 900px) { .hero-g { grid-template-columns: 1fr; gap: 26px; } }
+    .hero-eye { font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.52); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .hero-eye::before { content: ''; display: inline-block; width: 22px; height: 1.5px; background: rgba(255,255,255,.35); }
+    .hero-desc { font-size: 15px; color: rgba(255,255,255,.76); line-height: 1.7; margin: 18px 0 22px; max-width: 510px; }
+    .hero-bul { list-style: none; display: flex; flex-direction: column; gap: 9px; margin-bottom: 24px; }
+    .hero-bul li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: rgba(255,255,255,.82); line-height: 1.5; }
+    .bdot { margin-top: 7px; width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.55); flex-shrink: 0; box-shadow: 0 0 0 4px rgba(255,255,255,.05); }
+    .btn-p { background: #fff; color: ${ORANGE}; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; border: none; border-radius: 999px; padding: 13px 28px; cursor: pointer; box-shadow: 0 0 0 5px rgba(255,255,255,.15); transition: all .18s ease; }
+    .btn-p:hover { background: #ffe9dd; transform: translateY(-1px) scale(1.015); }
+    .btn-g { background: transparent; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .06em; border: 1.5px solid rgba(255,255,255,.38); border-radius: 999px; padding: 12px 22px; cursor: pointer; transition: all .15s ease; }
+    .btn-g:hover { border-color: #fff; background: rgba(255,255,255,.07); transform: translateY(-1px); }
+    .sp-row { display: flex; align-items: center; gap: 14px; margin-top: 18px; padding-top: 18px; border-top: 0.5px solid rgba(255,255,255,.12); flex-wrap: wrap; }
+    .avs { display: flex; }
+    .av { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.2); border: 2px solid rgba(255,75,0,.8); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; margin-left: -9px; }
+    .av:first-child { margin-left: 0; }
+
+    .hcard {
+      background: rgba(6,6,12,.84);
+      backdrop-filter: blur(26px);
+      -webkit-backdrop-filter: blur(26px);
+      border: 0.5px solid rgba(255,255,255,.1);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 30px 56px rgba(0,0,0,.48);
+      transform: translate3d(${heroShift.x}px, ${heroShift.y}px, 0);
+      transition: transform .2s ease;
+      animation: floatHero 6s ease-in-out infinite;
+    }
+    .hcard-top { padding: 12px 18px; border-bottom: 0.5px solid rgba(255,255,255,.07); display: flex; justify-content: space-between; align-items: center; }
+    .hcard-top-left { display: flex; align-items: center; gap: 8px; }
+    .hcard-top-left span { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.33); }
+    .live-row { display: flex; align-items: center; gap: 7px; font-size: 10px; color: rgba(255,255,255,.58); }
+    .ldot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; animation: bl 1.8s ease-in-out infinite; box-shadow: 0 0 0 6px rgba(34,197,94,.08); }
+    @keyframes bl { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+    .hcard-body { padding: 18px; display: grid; grid-template-columns: 1.45fr 1fr; gap: 14px; }
+    @media (max-width: 560px) { .hcard-body { grid-template-columns: 1fr; } }
+    .ql { font-size: 9px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.3); margin-bottom: 8px; }
+    .qbx {
+      background: rgba(255,255,255,.05);
+      border: 0.5px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 13px 15px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: rgba(255,255,255,.8);
+      margin-bottom: 12px;
+      animation: softGlow 4.2s ease-in-out infinite;
+    }
+    .abx { background: #fff; border-radius: 14px; padding: 13px 15px; box-shadow: 0 10px 24px rgba(0,0,0,.10); }
+    .atag { font-size: 9px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: ${ORANGE}; margin-bottom: 7px; }
+    .atxt { font-size: 12px; line-height: 1.65; color: #222; }
+    .scard { background: rgba(255,255,255,.04); border: 0.5px solid rgba(255,255,255,.07); border-radius: 14px; padding: 13px 14px; margin-bottom: 10px; transition: transform .2s ease, background .2s ease; }
+    .scard:hover { transform: translateY(-2px); background: rgba(255,255,255,.06); }
+    .snum { font-family: 'Fraunces', serif; font-size: 30px; font-weight: 900; line-height: 1; margin-bottom: 4px; }
+    .ssub { font-size: 10px; color: rgba(255,255,255,.34); line-height: 1.45; }
+    .slist { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-top: 7px; font-size: 12px; color: rgba(255,255,255,.58); }
+
+    .ticker-wrap { background: #111; border-top: 0.5px solid rgba(255,255,255,.06); height: 66px; display: flex; align-items: center; gap: 24px; overflow: hidden; padding: 0 clamp(18px, 4vw, 40px); }
+    .ticker-label { font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.24); white-space: nowrap; flex-shrink: 0; }
+    .ticker-track { flex: 1; overflow: hidden; mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent); }
+    .ticker-inner { display: flex; animation: tick 34s linear infinite; }
+    .ticker-inner:hover { animation-play-state: paused; }
+    @keyframes tick { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+    .ticker-item {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 22px;
+      height: 66px;
+      border-right: 0.5px solid rgba(255,255,255,.06);
+      transition: background .2s ease, transform .2s ease;
+    }
+    .ticker-item:hover { background: rgba(255,255,255,.04); transform: translateY(-1px); }
+    .ticker-item span { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.42); letter-spacing: .02em; transition: color .2s ease; white-space: nowrap; }
+    .ticker-item:hover span { color: rgba(255,255,255,.82); }
+
+    .stats { display: grid; grid-template-columns: repeat(4,1fr); background: ${CREAM}; }
+    @media (max-width: 680px) { .stats { grid-template-columns: repeat(2,1fr); } }
+    .stat { padding: 28px 24px; border-right: 0.5px solid rgba(0,0,0,.07); }
+    .stat:last-child { border-right: none; }
+    .stat-n { font-family: 'Fraunces', serif; font-size: 2.4rem; font-weight: 900; line-height: 1; color: ${ORANGE}; margin-bottom: 8px; }
+    .stat-l { font-size: 13px; font-weight: 500; color: #444; line-height: 1.45; }
+
+    .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    @media (max-width: 900px) { .steps { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 480px) { .steps { grid-template-columns: 1fr; } }
+    .step {
+      background: #fff;
+      border: 0.5px solid rgba(0,0,0,.06);
+      border-radius: 16px;
+      padding: 18px 16px;
+      transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+      animation: riseUp .7s ease both;
+    }
+    .step:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0,0,0,.08); border-color: rgba(255,75,0,.28); }
+    .step-n { font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: ${ORANGE}; margin-bottom: 10px; }
+    .step-t { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; color: #111; margin-bottom: 8px; line-height: 1.25; }
+    .step-b { font-size: 12px; color: #555; line-height: 1.55; }
+    .plats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .plat { display: flex; align-items: center; gap: 8px; background: #fff; border: 0.5px solid rgba(0,0,0,.07); border-radius: 999px; padding: 7px 14px; font-size: 11px; font-weight: 600; color: #111; transition: transform .18s ease, box-shadow .18s ease; }
+    .plat:hover { transform: translateY(-2px); box-shadow: 0 10px 16px rgba(0,0,0,.07); }
+    .plat-ok { font-size: 10px; color: #22c55e; font-weight: 700; }
+    .div7 { height: 0.5px; background: rgba(0,0,0,.07); margin: 28px 0; }
+
+    .w4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+    @media (max-width: 900px) { .w4 { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 480px) { .w4 { grid-template-columns: 1fr; } }
+    .wc {
+      background: #fff;
+      border: 0.5px solid rgba(0,0,0,.08);
+      border-radius: 16px;
+      padding: 18px;
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+      animation: riseUp .7s ease both;
+    }
+    .wc:hover { transform: translateY(-4px); box-shadow: 0 10px 26px rgba(0,0,0,.08); border-color: rgba(255,75,0,.22); }
+    .wc-l { font-size: 9px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #aaa; margin-bottom: 9px; }
+    .wc-t { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 700; color: #111; margin-bottom: 8px; line-height: 1.28; }
+    .wc-b { font-size: 12px; color: #555; line-height: 1.55; }
+
+    .toggle { display: inline-flex; background: rgba(255,255,255,.07); border: 0.5px solid rgba(255,255,255,.13); border-radius: 999px; padding: 3px; gap: 3px; margin-bottom: 20px; }
+    .tbtn { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; border: none; border-radius: 999px; padding: 8px 18px; cursor: pointer; transition: background .18s ease, color .18s ease, transform .18s ease; }
+    .tbtn:hover { transform: translateY(-1px); }
+    .tbtn.on { background: #fff; color: #111; }
+    .tbtn.off { background: transparent; color: rgba(255,255,255,.36); }
+    .ba3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+    @media (max-width: 720px) { .ba3 { grid-template-columns: 1fr; } }
+    .bac { background: rgba(255,255,255,.05); border: 0.5px solid rgba(255,255,255,.08); border-radius: 16px; padding: 18px; transition: transform .2s ease, background .2s ease; animation: riseUp .7s ease both; }
+    .bac:hover { transform: translateY(-3px); background: rgba(255,255,255,.07); }
+    .ba-l { font-size: 9px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: #ffb78a; margin-bottom: 10px; }
+    .ba-t { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .ba-b { font-size: 12px; color: rgba(255,255,255,.64); line-height: 1.6; }
+
+    .review-g { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+    @media (max-width: 820px) { .review-g { grid-template-columns: 1fr; } }
+    .rcard {
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px 16px 14px;
+      box-shadow: 0 8px 22px rgba(0,0,0,.1);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+      border: 1px solid rgba(0,0,0,.04);
+      animation: riseUp .72s ease both;
+      position: relative;
+      overflow: hidden;
+    }
+    .rcard::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,75,0,.03), transparent 30%, transparent 70%, rgba(255,75,0,.02));
+      pointer-events: none;
+    }
+    .rcard:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(0,0,0,.12); }
+    .rhead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; position: relative; z-index: 1; }
+    .rav { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+    .rname { font-size: 14px; font-weight: 800; color: #111; }
+    .rrole { font-size: 11px; color: #999; margin-top: 2px; }
+    .handle { font-size: 12px; color: #777; margin-top: 1px; }
+    .stars { color: #f59e0b; font-size: 13px; letter-spacing: 2px; margin-bottom: 8px; position: relative; z-index: 1; }
+    .rtext { font-size: 13px; line-height: 1.68; color: #333; position: relative; z-index: 1; }
+    .rdate { font-size: 11px; color: #c5c5c5; margin-top: 12px; font-weight: 600; position: relative; z-index: 1; }
+
+    .pgrid { display: grid; gap: 14px; margin-bottom: 18px; }
+    .plan-sk { background: rgba(255,255,255,.08); border-radius: 20px; min-height: 210px; animation: sk 1.4s ease-in-out infinite; }
+    @keyframes sk { 0%,100% { opacity: .35 } 50% { opacity: .75 } }
+    .guarantee { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; background: rgba(255,255,255,.07); border: 0.5px solid rgba(255,255,255,.12); border-radius: 14px; padding: 14px 18px; font-size: 13px; color: rgba(255,255,255,.72); }
+    .gi { display: flex; align-items: center; gap: 8px; }
+    .pay-row { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
+    .pay-chip { background: rgba(255,255,255,.1); border: 0.5px solid rgba(255,255,255,.17); border-radius: 9px; padding: 6px 12px; font-size: 11px; font-weight: 700; color: rgba(255,255,255,.62); }
+
+    .faq-list { background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,.08); }
+    .faq-item { border-bottom: 0.5px solid #f0ede8; }
+    .faq-item:last-child { border-bottom: none; }
+    .faq-btn { width: 100%; display: grid; grid-template-columns: 50px 1fr; text-align: left; background: none; border: none; cursor: pointer; transition: background .15s ease; }
+    .faq-btn:hover { background: #fafaf8; }
+    .faq-btn.open { background: #fff9f6; }
+    .faq-num { background: ${ORANGE}; color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Fraunces', serif; font-size: 14px; font-weight: 700; }
+    .faq-inner { padding: 16px 16px; }
+    .faq-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .faq-q { font-family: 'Fraunces', serif; font-size: 14px; font-weight: 700; color: #111; line-height: 1.35; }
+    .faq-ic { width: 25px; height: 25px; border-radius: 50%; border: 0.5px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #999; flex-shrink: 0; transition: transform .22s ease, background .15s ease, color .15s ease; }
+    .faq-ic.open { transform: rotate(45deg); background: ${ORANGE}; color: #fff; border-color: ${ORANGE}; }
+    .faq-a { font-size: 12px; color: #555; line-height: 1.65; padding-top: 10px; }
+
+    .cta2 { display: grid; grid-template-columns: 2fr 1.35fr; gap: 34px; align-items: center; }
+    @media (max-width: 800px) { .cta2 { grid-template-columns: 1fr; gap: 24px; } }
+    .what-box { background: rgba(0,0,0,.2); border: 0.5px solid rgba(255,255,255,.18); border-radius: 18px; padding: 20px; }
+    .chk { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-top: 14px; }
+    .chk li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.52; color: rgba(255,255,255,.84); }
+    .cdot { margin-top: 6px; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; flex-shrink: 0; box-shadow: 0 0 0 5px rgba(34,197,94,.08); }
+
+    @keyframes wp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+    @keyframes riseUp { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: translateY(0) } }
+    @keyframes floatCard { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-4px) } }
+    @keyframes floatHero { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+    @keyframes softGlow { 0%,100% { box-shadow: 0 0 0 rgba(255,255,255,0) } 50% { box-shadow: 0 0 0 8px rgba(255,255,255,.02) } }
+    @keyframes bgPulse { 0%,100% { opacity: .65 } 50% { opacity: 1 } }
+    @keyframes softPulse { 0%,100% { transform: scale(1); opacity: .72; } 50% { transform: scale(1.03); opacity: 1; } }
+    .word { display: inline-block; animation: wp .32s ease forwards; }
+    @media (max-width: 500px) { .ticker-wrap { height: auto; padding: 12px 18px; flex-direction: column; gap: 10px; } }
+    .section-label { font-size: 14px; color: #444; line-height: 1.65; }
+    .logo-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .logo-badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; overflow: hidden; box-shadow: 0 14px 30px rgba(0,0,0,.12); }
+    .logo-badge img { display: block; width: 100%; height: 100%; object-fit: contain; }
+  `;
+
+  return (
+    <div className="hp">
+      <style>{css}</style>
+
+      <section
+        className="hero"
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = ((e.clientX - rect.left) / rect.width - 0.5) * 8;
+          const y = ((e.clientY - rect.top) / rect.height - 0.5) * 8;
+          setHeroShift({ x, y });
+        }}
+        onMouseLeave={() => setHeroShift({ x: 0, y: 0 })}
+      >
+        <div className="hero-g">
+          <div>
+            <div className="logo-row" style={{ marginBottom: 18 }}>
+              <span className="logo-badge" style={{ width: 38, height: 38, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.14)" }}>
+                <img src={FLUENTFOX_LOGO} alt="FluentFox" style={{ width: 30, height: 30, objectFit: "contain" }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              </span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase" }}>FluentFox</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,.55)", marginTop: 2 }}>Real-time AI interview assistant</div>
+              </div>
+            </div>
+
+            <p className="hero-eye">Real-time AI interview assistant</p>
+            <h1>
+              Speak{" "}
+              <span key={words[wi]} className="word" style={{ background: "rgba(255,255,255,.13)", borderRadius: 8, padding: "2px 10px" }}>
+                {words[wi]}
               </span>{" "}
-              answers for any interview.
-            </h2>
-
-            <p className="text-sm md:text-[15px] leading-relaxed text-[#ffe7d8]">
-              FluentFox is an AI‑powered real‑time interview practice assistant
-              that removes fear, anxiety, and confusion — helping you stay calm
-              and speak clearly when it matters most.
+              in every interview.
+            </h1>
+            <p className="hero-desc">
+              FluentFox listens to your interview in real time and shows you a structured, personalised answer in under 0.2 seconds — so you never freeze, ramble, or lose your place again.
             </p>
-
-            <ul className="grid gap-2 text-[13px] md:text-sm">
-              <li className="flex gap-2">
-                <span className="mt-[3px] h-[6px] w-[6px] rounded-full bg-white" />
-                <span>
-                  Learn exactly what to say in common interview questions.
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <span className="mt-[3px] h-[6px] w-[6px] rounded-full bg-white" />
-                <span>Practice speaking answers out loud without fear.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="mt-[3px] h-[6px] w-[6px] rounded-full bg-white" />
-                <span>Reduce hesitation, anxiety, and last‑minute panic.</span>
-              </li>
+            <ul className="hero-bul">
+              {[
+                "Answers tailored to your actual resume and the specific role.",
+                "Runs silently beside any video or phone interview.",
+                "Audio never stored, never shared — completely private.",
+              ].map((t) => (
+                <li key={t}>
+                  <span className="bdot" />
+                  {t}
+                </li>
+              ))}
             </ul>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button className="btn-p" onClick={() => nav("/access-pricing")}>Get started</button>
+              <button className="btn-g" onClick={() => document.getElementById("pricing-sec")?.scrollIntoView({ behavior: "smooth" })}>See pricing ↓</button>
+            </div>
+            <div className="sp-row">
+              <div className="avs">
+                {["AM", "JK", "SL", "RV"].map((i, x) => (
+                  <div key={x} className="av">{i}</div>
+                ))}
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>1 lakh+ candidates</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,.48)", marginTop: 2 }}>
+                  <span style={{ color: "#f59e0b" }}>★★★★★</span> 4.9 avg · 340+ reviews
+                </div>
+              </div>
+              <div style={{ marginLeft: "auto", background: "rgba(255,255,255,.1)", border: "0.5px solid rgba(255,255,255,.17)", borderRadius: 999, padding: "5px 14px", fontSize: 10, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>
+                40,000+ sessions
+              </div>
+            </div>
+          </div>
 
-            {/* SINGLE CTA: CONTACT PAGE ONLY */}
-            <div className="flex flex-wrap gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => navigate("/access-pricing")}
-                className="w-full xs:w-auto px-6 py-3 bg-white text-black rounded-full text-[12px] sm:text-[13px] font-semibold tracking-[0.12em] uppercase shadow-sm hover:bg-[#ffe9dd] transition text-center relative cta-pulse"
-              >
-                Contact us to get the app & pricing
+          <div className="hcard">
+            <div className="hcard-top">
+              <div className="hcard-top-left">
+                <img src={FLUENTFOX_LOGO} alt="" style={{ height: 18, width: 18, objectFit: "contain" }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                <span>live session</span>
+              </div>
+              <div className="live-row"><span className="ldot" />Active</div>
+            </div>
+            <div className="hcard-body">
+              <div>
+                <p className="ql">Interviewer question</p>
+                <div className="qbx">Tell me about a time you delivered results under tight pressure.</div>
+                <p className="ql">FluentFox answer</p>
+                <div className="abx">
+                  <p className="atag">STAR · Role-aligned · 45s</p>
+                  <p className="atxt">At my last role, our product launch was moved up by three weeks. I re-scoped the sprint, got stakeholder sign-off on what to cut, and we shipped on time with zero P1 bugs — driving a 22% spike in weekly active users in the first month.</p>
+                </div>
+              </div>
+              <div>
+                <div className="scard">
+                  <p className="ql" style={{ marginBottom: 7 }}>Session context</p>
+                  <ul className="slist">
+                    <li>◈ Resume loaded</li>
+                    <li>◈ JD loaded</li>
+                    <li>◈ Role: Product Manager</li>
+                  </ul>
+                </div>
+                <div className="scard">
+                  <p className="ql" style={{ marginBottom: 5 }}>Response time</p>
+                  <p className="snum">0.2s</p>
+                  <p className="ssub">Average — never breaks your flow.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="ticker-wrap">
+        <span className="ticker-label">Candidates targeting</span>
+        <div className="ticker-track">
+          <div className="ticker-inner">
+            {doubledCompanies.map((c, i) => (
+              <div key={`${c.name}-${i}`} className="ticker-item">
+                <BrandLogo src={SIMPLEICONS(c.slug)} name={c.name} size={24} />
+                <span>{c.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <section style={{ background: CREAM }}>
+        <div className="inner">
+          <div className="stats">
+            {[
+              { n: "1 lakh+", l: "Candidates prepared" },
+              { n: "0.2s", l: "Avg. answer speed" },
+              { n: "40,000+", l: "Live sessions run" },
+              { n: "4.9★", l: "User rating" },
+            ].map((s) => (
+              <div key={s.n} className="stat">
+                <div className="stat-n">{s.n}</div>
+                <div className="stat-l">{s.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="sec" id="how" style={{ background: CREAM, color: TEXT }}>
+        <div className="inner">
+          <div className="sh">
+            <SectionReveal delay={0.02}>
+              <Pill>How it works</Pill>
+              <h2>From setup to first live answer in under two minutes.</h2>
+            </SectionReveal>
+            <SectionReveal delay={0.08}>
+              <p className="section-label">Upload your resume and job description before the call. Start the session. FluentFox listens and responds automatically while you focus entirely on speaking well.</p>
+            </SectionReveal>
+          </div>
+          <div className="steps">
+            {[
+              { n: "01", t: "Upload your resume", b: "FluentFox reads your actual experience so every answer references your real background, projects, and wins." },
+              { n: "02", t: "Add the job description", b: "Answers adapt to the exact company, role, and level so they never feel generic." },
+              { n: "03", t: "Start the live session", b: "Open FluentFox alongside your video call. It listens automatically with no clicking or typing while you're talking." },
+              { n: "04", t: "Read and speak naturally", b: "A structured answer appears in under 0.2 seconds. Speak it naturally and keep eye contact." },
+              { n: "05", t: "Stop when you're done", b: "End the session after the call. If it ran under 10 minutes, your credit is refunded automatically." },
+            ].map((s, idx) => (
+              <div key={s.n} className="step" style={{ animationDelay: `${idx * 70}ms` }}>
+                <p className="step-n">Step {s.n}</p>
+                <p className="step-t">{s.t}</p>
+                <p className="step-b">{s.b}</p>
+              </div>
+            ))}
+          </div>
+          <div className="div7" />
+          <Pill bg="rgba(0,0,0,.06)" color="#444">Works alongside any platform</Pill>
+          <div className="plats">
+            {platforms.map((p, idx) => (
+              <div key={p} className="plat" style={{ animationDelay: `${idx * 40}ms` }}>
+                <span className="plat-ok">●</span>
+                {p}
+                <span className="plat-ok">Live</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="sec" style={{ background: "#fff", color: TEXT }}>
+        <div className="inner">
+          <div className="sh">
+            <SectionReveal delay={0.02}>
+              <Pill>Who it helps</Pill>
+              <h2>If interviews make you nervous, this is built for you.</h2>
+            </SectionReveal>
+            <SectionReveal delay={0.08}>
+              <p className="section-label">Anxiety does not care how qualified you are. It hits first-timers and experienced professionals alike. FluentFox makes the nerves irrelevant because the answer is there when you need it.</p>
+            </SectionReveal>
+          </div>
+          <div className="w4">
+            {[
+              { label: "Students & freshers", t: "No work history? No problem.", b: "Practice real examples and frame internships or projects the way interviewers expect." },
+              { label: "Active job seekers", t: "You know it. Now say it well.", b: "Bridge the gap between knowing the answer and delivering it clearly under pressure." },
+              { label: "Career switchers", t: "Your past looks different on paper.", b: "Turn your transition into a confident story instead of an awkward explanation." },
+              { label: "Anyone who blanks", t: "The empty mind ends today.", b: "When your brain goes blank mid-answer, FluentFox already has the next line on screen." },
+            ].map((c, idx) => (
+              <div key={c.label} className="wc" style={{ animationDelay: `${idx * 80}ms` }}>
+                <p className="wc-l">{c.label}</p>
+                <p className="wc-t">{c.t}</p>
+                <p className="wc-b">{c.b}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="sec" style={{ background: DARK, color: "#fff" }}>
+        <div className="inner">
+          <div className="sh">
+            <SectionReveal delay={0.02}>
+              <Pill bg="rgba(255,183,138,0.14)" color="#ffb78a">The shift</Pill>
+              <h2>Same interview. Completely different outcome.</h2>
+            </SectionReveal>
+            <SectionReveal delay={0.08}>
+              <p className="section-label" style={{ color: "rgba(255,255,255,.5)" }}>It is not about reading off a script — it is about having a safety net that stops the panic. Once the anxiety is gone, everything else falls into place.</p>
+            </SectionReveal>
+          </div>
+          <div className="toggle">
+            {[
+              { key: "before", label: "Without FluentFox" },
+              { key: "after", label: "With FluentFox" },
+            ].map((m) => (
+              <button key={m.key} className={`tbtn ${mode === m.key ? "on" : "off"}`} onClick={() => setMode(m.key)}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <div className="ba3">
+            {(
+              mode === "before"
+                ? [
+                    { label: "Mid-answer", t: "Trailing off, losing the thread", b: "You start strong but drift. The answer becomes long, unfocused, and difficult to rescue once the pressure rises." },
+                    { label: "Under pressure", t: "Brain empties completely", b: "The harder the question, the blanker you get. You hear yourself apologizing and asking for the question to be repeated." },
+                    { label: "Walking out", t: "Replaying every mistake", b: "You leave the call reconstructing what you should have said instead of feeling proud of what you actually said." },
+                  ]
+                : [
+                    { label: "Mid-answer", t: "On point, landing cleanly", b: "There is structure. You know where the answer is going. You know when to stop. The interviewer nods. It works." },
+                    { label: "Under pressure", t: "Calm, grounded, in control", b: "The answer is always there. Your nervous system stays quiet. Your voice stays steady. You keep going." },
+                    { label: "Walking out", t: "You know you nailed it", b: "Specific, confident, memorable answers — the kind that stick in an interviewer’s mind for days." },
+                  ]
+            ).map((c, idx) => (
+              <div key={c.label} className="bac" style={{ animationDelay: `${idx * 80}ms` }}>
+                <p className="ba-l">{c.label}</p>
+                <p className="ba-t">{c.t}</p>
+                <p className="ba-b">{c.b}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="sec" style={{ background: "#0b0b10", color: "#fff" }}>
+        <div className="inner">
+          <div className="sh">
+            <SectionReveal delay={0.02}>
+              <Pill bg="rgba(255,183,138,0.13)" color="#ffb78a">Real results</Pill>
+              <h2>From the people who actually used it.</h2>
+            </SectionReveal>
+            <SectionReveal delay={0.08}>
+              <p className="section-label" style={{ color: "rgba(255,255,255,.42)" }}>These are the outcomes we see across everyday candidates — not the handpicked best case, the regular case.</p>
+            </SectionReveal>
+          </div>
+          <div className="review-g">
+            {testimonials.map((r, idx) => (
+              <div key={`${r.name}-${idx}`} className="rcard" style={{ animationDelay: `${idx * 65}ms` }}>
+                <div className="rhead">
+                  <div className="rav" style={{ background: r.accent }}>{r.initials}</div>
+                  <div>
+                    <p className="rname">{r.name}</p>
+                    <p className="handle">{r.handle}</p>
+                    <p className="rrole">{r.role}</p>
+                  </div>
+                </div>
+                <div className="stars">★★★★★</div>
+                <p className="rtext">“{r.text}”</p>
+                <p className="rdate">Verified session feedback</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="sec" id="pricing-sec" style={{ background: ORANGE, color: "#fff" }}>
+        <div className="inner">
+          <div className="sh" style={{ marginBottom: 28 }}>
+            <SectionReveal delay={0.02}>
+              <Pill bg="rgba(255,255,255,.15)" color="#fff">Pricing</Pill>
+              <h2>Pay per session. No subscriptions.</h2>
+            </SectionReveal>
+            <SectionReveal delay={0.08}>
+              <p className="section-label" style={{ color: "rgba(255,255,255,.68)" }}>Buy credits when you have interviews. Use them when you need them. If a session ends before 10 minutes for any reason, your credit comes back automatically.</p>
+            </SectionReveal>
+          </div>
+
+          {plansLoading ? (
+            <div className="pgrid" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
+              {[1, 2, 3].map((i) => <div key={i} className="plan-sk" />)}
+            </div>
+          ) : plans.length === 0 ? (
+            <div style={{ background: "rgba(255,255,255,.1)", borderRadius: 18, padding: "28px", textAlign: "center" }}>
+              <p style={{ fontSize: 15, color: "rgba(255,255,255,.55)", marginBottom: 14 }}>Plans coming soon.</p>
+              <button onClick={() => nav("/access-pricing")} style={{ background: "#fff", color: ORANGE, border: "none", borderRadius: 999, padding: "11px 24px", fontWeight: 800, fontSize: 12, cursor: "pointer", letterSpacing: ".08em", textTransform: "uppercase" }}>
+                Contact us
               </button>
             </div>
-          </div>
-
-          {/* RIGHT: HERO MOCK / IMAGE */}
-          <div className="relative max-w-xl mx-auto lg:mx-0 w-full animate-floatSlow">
-            <div
-              className="rounded-[24px] sm:rounded-[32px] bg-[#111111]/70 backdrop-blur-md border border-white/10 overflow-hidden 
-                         shadow-[0_18px_40px_rgba(0,0,0,0.5)]
-                         transition-transform duration-500 hover:-translate-y-2 card-glow"
-            >
-              <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between text-[10px] sm:text-[11px] tracking-[0.14em] uppercase">
-                <span className="text-white/70">FluentFox Session</span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-[8px] w-[8px] rounded-full bg-[#16ff72] animate-pulse" />
-                  Live Practice
-                </span>
-              </div>
-
-              <div className="p-4 sm:p-6 grid gap-6 md:grid-cols-[1.4fr_1fr]">
-                {/* LIVE QUESTION */}
-                <div className="space-y-4">
-                  <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.16em] text-white/60">
-                    Interviewer Question
-                  </p>
-                  <div className="rounded-2xl bg-white/5 border border-white/10 p-3 sm:p-4 text-[12px] sm:text-[13px] leading-relaxed transition duration-300 hover:bg-white/10">
-                    Tell me about yourself and why you’re interested in this
-                    role.
-                  </div>
-
-                  <p className="mt-4 text-[10px] sm:text-[11px] uppercase tracking-[0.16em] text-white/60">
-                    FluentFox Answer Preview
-                  </p>
-                  <div className="rounded-2xl bg-white text-black p-3 sm:p-4 text-[11px] sm:text-[12px] leading-relaxed space-y-1 transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl">
-                    <p className="font-semibold text-[10px] sm:text-[11px] tracking-[0.14em] uppercase text-[#ff4b00]">
-                      Clear, structured response
-                    </p>
-                    <p>
-                      I’m a software engineer with 3+ years of experience
-                      building reliable web applications. In my current role,
-                      I’ve led projects that improved performance and usability,
-                      and I’m excited about this position because it lets me
-                      work on products that reach millions of users…
-                    </p>
-                  </div>
-                </div>
-
-                {/* SIDE PILLARS / STATS */}
-                <div className="space-y-4 text-[11px]">
-                  <div className="rounded-2xl bg-[#222222] border border-white/10 p-3 sm:p-4 space-y-3 transition-transform duration-300 hover:-translate-y-1 hover:bg-[#2b2b2b]">
-                    <p className="uppercase tracking-[0.16em] text-white/60 text-[10px] sm:text-[11px]">
-                      Your Practice Focus
-                    </p>
-                    <ul className="space-y-2 text-[11px] sm:text-[12px]">
-                      <li>• Clear structure (STAR method)</li>
-                      <li>• Confident tone & pacing</li>
-                      <li>• Role‑aligned examples</li>
-                    </ul>
-                  </div>
-
-                  <div className="rounded-2xl bg-[#222222] border border-white/10 p-3 sm:p-4 transition-transform duration-300 hover:-translate-y-1 hover:bg-[#2b2b2b]">
-                    <p className="uppercase tracking-[0.16em] text-white/60 mb-2 sm:mb-3 text-[10px] sm:text-[11px]">
-                      Response Speed
-                    </p>
-                    <p className="text-xl sm:text-2xl font-black leading-none mb-1">
-                      0.2s
-                    </p>
-                    <p className="text-[10px] sm:text-[11px] text-white/60">
-                      Typical answer generation time in internal evaluations —
-                      so you never wait or lose focus.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Floating micro-badges */}
-            <div className="pointer-events-none absolute -left-6 top-6 hidden sm:block">
-              <div className="rounded-full bg-black/50 border border-white/20 px-3 py-1 text-[10px] uppercase tracking-[0.16em] flex items-center gap-1 backdrop-blur">
-                <span className="h-[6px] w-[6px] rounded-full bg-[#16ff72]" />
-                <span>Real-time</span>
-              </div>
-            </div>
-            <div className="pointer-events-none absolute -right-4 bottom-10 hidden sm:block">
-              <div className="rounded-2xl bg-white/10 border border-white/30 px-3 py-2 text-[10px] leading-snug backdrop-blur-sm">
-                3x more confident after{" "}
-                <span className="font-semibold">2–3 sessions</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* TRUST BAR / LOGO MARQUEE */}
-      <section className="bg-[#1b1b1f] text-white py-5 px-4 sm:px-6 lg:px-8 border-t border-white/5">
-        <div className="max-w-6xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[11px] sm:text-[12px] tracking-[0.16em] uppercase text-white/50">
-            PRACTICE USED BY CANDIDATES PREPARING FOR ROLES AT
-          </p>
-          <div className="relative overflow-hidden w-full sm:w-auto">
-            <div className="flex gap-10 whitespace-nowrap logo-marquee">
-              {[
-                "https://upload.wikimedia.org/wikipedia/commons/a/ab/Logo_TV_2015.png",
-                "https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg",
-                "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
-                "https://upload.wikimedia.org/wikipedia/commons/5/51/IBM_logo.svg",
-                "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg",
-                "https://upload.wikimedia.org/wikipedia/commons/4/4a/Meta_Platforms_Inc._logo.svg"
-              ]
-                .concat([
-                  "https://upload.wikimedia.org/wikipedia/commons/a/ab/Logo_TV_2015.png",
-                  "https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg",
-                  "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg"
-                ])
-                .map((src, idx) => (
-                  <img
-                    key={idx}
-                    src={src}
-                    alt="Company logo"
-                    className="h-5 sm:h-6 object-contain opacity-70 hover:opacity-100 transition-opacity"
-                  />
-                ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section className="bg-[#fff5e6] text-black py-14 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto space-y-10">
-          <div className="grid gap-6 md:grid-cols-[2fr_3fr] items-end">
-            <div>
-              <p className="uppercase tracking-[0.18em] text-[10px] sm:text-[11px] font-semibold text-[#ff4b00]">
-                PRACTICE LIKE A REAL INTERVIEW
-              </p>
-              <h2 className="text-[clamp(1.9rem,3vw,2.6rem)] font-black leading-tight">
-                How FluentFox works
-              </h2>
-            </div>
-            <p className="text-sm md:text-[15px] text-[#3b2b1b] leading-relaxed">
-              FluentFox supports you during real or practice interviews by
-              listening to questions, understanding your resume and the job
-              description, and instantly showing clear, structured answers on
-              your screen — so you always know what to say.
-            </p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-5 text-[13px]">
-            {[
-              {
-                step: "01",
-                title: "Upload your resume",
-                body: "Helps FluentFox understand your background, skills, and strengths."
-              },
-              {
-                step: "02",
-                title: "Add the job description",
-                body: "Answers are customized to the specific role you’re preparing for."
-              },
-              {
-                step: "03",
-                title: "Start your interview",
-                body: "FluentFox listens when a question is asked — just like a real interview."
-              },
-              {
-                step: "04",
-                title: "Instant answer appears",
-                body: "A clear, structured answer shows up on your screen in real time."
-              },
-              {
-                step: "05",
-                title: "You speak with confidence",
-                body: "Follow the guidance to deliver your answer calmly and naturally."
-              }
-            ].map((item) => (
-              <div
-                key={item.step}
-                className="rounded-2xl bg-white shadow-sm p-4 flex flex-col gap-2 border border-transparent
-                           transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#ff4b00]/40"
-              >
-                <span className="text-[10px] sm:text-[11px] tracking-[0.16em] font-semibold text-[#ff4b00]">
-                  STEP {item.step}
-                </span>
-                <p className="font-semibold text-[13px] sm:text-[14px] leading-snug">
-                  {item.title}
-                </p>
-                <p className="text-[12px] sm:text-[13px] text-[#4b3520] leading-relaxed">
-                  {item.body}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* EXTRA IMAGE STRIP */}
-          <div className="mt-8 grid gap-3 sm:gap-4 sm:grid-cols-3 text-[12px] text-[#4b3520]">
-            <div className="rounded-2xl overflow-hidden shadow-sm group">
-              <img
-                src="https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=800"
-                alt="Interview preparation workspace"
-                className="w-full h-32 sm:h-40 object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-              />
-            </div>
-            <div className="rounded-2xl overflow-hidden shadow-sm group">
-              <img
-                src="https://images.pexels.com/photos/1181376/pexels-photo-1181376.jpeg?auto=compress&cs=tinysrgb&w=800"
-                alt="Notes and laptop"
-                className="w-full h-32 sm:h-40 object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-              />
-            </div>
-            <div className="rounded-2xl overflow-hidden shadow-sm sm:block hidden group">
-              <img
-                src="https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=800"
-                alt="Focused candidate"
-                className="w-full h-32 sm:h-40 object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* WHAT YOU'LL MASTER */}
-      <section className="bg-[#0077ff] text-white py-14 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto grid gap-10 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,2.4fr)] items-center">
-          <div className="space-y-5">
-            <p className="uppercase tracking-[0.18em] text-[10px] sm:text-[11px] font-semibold">
-              WHAT YOU’LL MASTER
-            </p>
-            <h2 className="text-[clamp(1.9rem,3vw,2.6rem)] font-black leading-tight">
-              Speak clearly, stay calm, and answer with confidence.
-            </h2>
-            <p className="text-sm md:text-[15px] leading-relaxed text-[#e3f0ff]">
-              With every session, FluentFox helps you build real interview skills
-              — not just memorize scripts. You practice live answers, learn
-              natural structures, and train your voice to stay steady even under
-              pressure.
-            </p>
-
-            <div className="grid sm:grid-cols-2 gap-4 text-[13px]">
-              {[
-                {
-                  label: "CLARITY",
-                  title: "Structured, easy‑to‑follow answers",
-                  body: "Learn to organize your thoughts using proven patterns like STAR so your answers feel focused, logical, and confident."
-                },
-                {
-                  label: "CONFIDENCE",
-                  title: "Speak without fear or freezing",
-                  body: "FluentFox keeps you from blanking out by always giving you a strong answer to follow, so you can focus on delivery."
-                },
-                {
-                  label: "PERSONALIZATION",
-                  title: "Answers tailored to you & your role",
-                  body: "Resume‑aware and JD‑aware answers mean your responses match your real experience and the role you want."
-                },
-                {
-                  label: "PRACTICE",
-                  title: "Repetition that actually builds skill",
-                  body: "Run multiple sessions, refine answers, and watch your anxiety drop as your speaking ability increases."
-                }
-              ].map((card) => (
-                <div
-                  key={card.label}
-                  className="bg-white text-black rounded-2xl p-4
-                             transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-                >
-                  <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.16em] text-[#0077ff] font-semibold mb-2">
-                    {card.label}
-                  </p>
-                  <p className="font-semibold mb-1 text-[13px] sm:text-[14px]">
-                    {card.title}
-                  </p>
-                  <p className="text-[12px] sm:text-[13px] text-[#30415d]">
-                    {card.body}
-                  </p>
-                </div>
+          ) : (
+            <div className="pgrid" style={{ gridTemplateColumns: `repeat(${Math.min(plans.length, 3)}, 1fr)` }}>
+              {plans.map((plan, idx) => (
+                <PricingCard key={plan.id ?? idx} plan={plan} highlight={plans.length === 1 ? true : idx === Math.floor(plans.length / 2)} index={idx} />
               ))}
             </div>
-          </div>
+          )}
 
-          {/* IMAGE */}
-          <div className="rounded-[24px] sm:rounded-[32px] overflow-hidden shadow-[0_20px_40px_rgba(0,0,0,0.5)] mt-4 lg:mt-0">
-            <img
-              src="https://images.pexels.com/photos/1181391/pexels-photo-1181391.jpeg?auto=compress&cs=tinysrgb&w=1200"
-              alt="Person practicing interview answers on a laptop"
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* FEATURES & PERFORMANCE */}
-      <section className="bg-[#f6f1e8] text-black py-14 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto space-y-10">
-          <div className="grid gap-6 md:grid-cols-[2fr_3fr] items-end">
-            <div>
-              <p className="uppercase tracking-[0.18em] text-[10px] sm:text-[11px] font-semibold text-[#ff4b00]">
-                BUILT FOR REAL PERFORMANCE
-              </p>
-              <h2 className="text-[clamp(1.9rem,3vw,2.6rem)] font-black leading-tight">
-                Fast, stable, and focused on your growth.
-              </h2>
-            </div>
-            <p className="text-sm md:text-[15px] text-[#3b2b1b] leading-relaxed">
-              FluentFox combines strong answer generation, personalized guidance,
-              and an ultra‑fast backend to create a practice environment that
-              feels smooth and reliable — even in high‑pressure interview
-              simulations.
-            </p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3 text-[13px]">
-            {[
-              {
-                label: "Ultra‑fast backend",
-                title: "Answers in as little as 0.2 seconds",
-                body: "Our architecture is engineered for speed and consistency, so you never wait 2–3 seconds for a reply or lose focus mid‑flow."
-              },
-              {
-                label: "Stable & distraction‑free",
-                title: "A smooth, refined practice experience",
-                body: "Sessions run cleanly without interruptions, glitches, or clutter, letting you focus entirely on how you communicate."
-              },
-              {
-                label: "High‑end AI models",
-                title: "Polished, role‑aware answers",
-                body: "FluentFox uses advanced models to generate accurate, well‑structured answers aligned to your resume and target role."
-              }
-            ].map((card) => (
-              <div
-                key={card.label}
-                className="bg-white rounded-2xl p-4 shadow-sm border border-transparent
-                           transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#ff4b00]/30"
-              >
-                <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.16em] font-semibold text-[#ff4b00] mb-2">
-                  {card.label}
-                </p>
-                <p className="font-semibold mb-1 text-[13px] sm:text-[14px]">
-                  {card.title}
-                </p>
-                <p className="text-[12px] sm:text-[13px] text-[#4b3520] leading-relaxed">
-                  {card.body}
-                </p>
-              </div>
+          <div className="guarantee">
+            {["Auto-refund under 10 mins", "Credits only — no subscription", "Audio never stored", "Any platform"].map((g) => (
+              <div key={g} className="gi"><span style={{ color: "#22c55e", fontWeight: 900 }}>●</span><span>{g}</span></div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* WHO IT'S FOR */}
-      <section className="bg-[#ffffff] text-black py-14 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto space-y-8">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-            <div>
-              <p className="uppercase tracking-[0.18em] text-[10px] sm:text-[11px] font-semibold text-[#ff4b00]">
-                WHO IT HELPS
-              </p>
-              <h2 className="text-[clamp(1.9rem,3vw,2.4rem)] font-black leading-tight">
-                FluentFox is for anyone who feels nervous in interviews.
-              </h2>
-            </div>
-            <p className="text-sm md:text-[15px] text-[#444] max-w-xl leading-relaxed">
-              Whether you’re just starting your career or switching into a new
-              role, FluentFox gives you a safe space to practice answering tough
-              questions with clarity and confidence.
-            </p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-4 text-[13px]">
-            {[
-              {
-                label: "STUDENTS & FRESHERS",
-                title: "Your first interviews, minus the panic",
-                body: "Practice common questions and learn how to talk about projects and internships with confidence."
-              },
-              {
-                label: "JOB SEEKERS",
-                title: "Turn anxiety into preparation",
-                body: "Replace guesswork with clear, structured answers that show your value instantly."
-              },
-              {
-                label: "CAREER SWITCHERS",
-                title: "Tell your story in a new domain",
-                body: "FluentFox helps position your past experience so it makes sense in the new industry or role you’re targeting."
-              },
-              {
-                label: "ANYONE WHO FEELS NERVOUS",
-                title: "A calm backup for high‑pressure moments",
-                body: "When you’re afraid of freezing, FluentFox gives you a reliable answer on screen so you never feel lost."
-              }
-            ].map((card) => (
-              <div
-                key={card.label}
-                className="rounded-2xl border border-[#eee] p-4
-                           transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-[#ff4b00]/30"
-              >
-                <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.16em] font-semibold text-[#777] mb-2">
-                  {card.label}
-                </p>
-                <p className="font-semibold mb-1 text-[13px] sm:text-[14px]">
-                  {card.title}
-                </p>
-                <p className="text-[12px] sm:text-[13px] text-[#555] leading-relaxed">
-                  {card.body}
-                </p>
-              </div>
-            ))}
+          <div className="pay-row">
+            {paymentMethods.map((p) => <span key={p} className="pay-chip">{p}</span>)}
           </div>
         </div>
       </section>
 
-      {/* BEFORE VS AFTER SECTION */}
-      <section className="bg-[#0b1020] text-white py-14 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto space-y-8">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-            <div>
-              <p className="uppercase tracking-[0.18em] text-[10px] sm:text-[11px] font-semibold text-[#ffb78a]">
-                TRANSFORMATION
-              </p>
-              <h2 className="text-[clamp(1.9rem,3vw,2.5rem)] font-black leading-tight">
-                See the shift from nervous to confident.
-              </h2>
-            </div>
-            <p className="text-sm md:text-[15px] text-[#ccd4ff] max-w-xl leading-relaxed">
-              Switch between “before” and “after” to see how FluentFox changes
-              your interview performance over just a few focused sessions.
-            </p>
+      <section className="sec" id="faq" style={{ background: CREAM, color: TEXT }}>
+        <div className="inner">
+          <div className="sh" style={{ marginBottom: 26 }}>
+            <SectionReveal delay={0.02}><Pill>Questions</Pill><h2>Straight answers.</h2></SectionReveal>
+            <SectionReveal delay={0.08}><p className="section-label">No marketing copy. Just direct answers about how FluentFox actually works, what it costs, and what to expect the first time you use it in a real interview.</p></SectionReveal>
           </div>
-
-          {/* TOGGLE */}
-          <div className="inline-flex rounded-full bg-white/5 border border-white/10 p-1 text-[11px]">
-            <button
-              type="button"
-              onClick={() => setViewMode("before")}
-              className={`px-4 py-1 rounded-full uppercase tracking-[0.16em] transition-all ${
-                viewMode === "before"
-                  ? "bg-white text-black font-semibold"
-                  : "text-white/60 hover:text-white"
-              }`}
-            >
-              Before FluentFox
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("after")}
-              className={`px-4 py-1 rounded-full uppercase tracking-[0.16em] transition-all ${
-                viewMode === "after"
-                  ? "bg-white text-black font-semibold"
-                  : "text-white/60 hover:text-white"
-              }`}
-            >
-              After FluentFox
-            </button>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3 text-[13px]">
-            {(viewMode === "before"
-              ? [
-                  {
-                    label: "BODY LANGUAGE",
-                    title: "Fidgeting & avoiding eye contact",
-                    body: "You’re focused on ‘what to say’ instead of how you’re coming across, so your body language feels stiff."
-                  },
-                  {
-                    label: "ANSWERS",
-                    title: "Rambling, unstructured responses",
-                    body: "Stories start strong but drift off, and you’re never sure when to wrap up or what to highlight."
-                  },
-                  {
-                    label: "MINDSET",
-                    title: "Fear of freezing mid‑question",
-                    body: "You’re worried about forgetting examples or saying the ‘wrong’ thing, which makes you even more anxious."
-                  }
-                ]
-              : [
-                  {
-                    label: "BODY LANGUAGE",
-                    title: "Steady, open posture",
-                    body: "Because you already know the structure, you can relax physically and give the interviewer your full attention."
-                  },
-                  {
-                    label: "ANSWERS",
-                    title: "Sharp, concise stories",
-                    body: "You follow a natural pattern, hit the right details, and land each answer with a clear outcome or impact."
-                  },
-                  {
-                    label: "MINDSET",
-                    title: "Quiet, calm confidence",
-                    body: "You’ve practiced realistic questions and know FluentFox has your back, so your brain doesn’t go blank."
-                  }
-                ]
-            ).map((card) => (
-              <div
-                key={card.label}
-                className="rounded-2xl bg-white/5 border border-white/10 p-4 backdrop-blur-sm
-                           transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
-              >
-                <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.16em] text-[#ffb78a] mb-2">
-                  {card.label}
-                </p>
-                <p className="font-semibold mb-1 text-[13px] sm:text-[14px]">
-                  {card.title}
-                </p>
-                <p className="text-[12px] sm:text-[13px] text-[#e8ecff] leading-relaxed">
-                  {card.body}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIALS */}
-      <section className="bg-[#0b0b10] text-white py-14 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto space-y-10">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-            <div>
-              <p className="uppercase tracking-[0.2em] text-[10px] sm:text-[11px] font-semibold text-[#ffb78a]">
-                SOCIAL PROOF
-              </p>
-              <h2
-                className="text-[clamp(2rem,3.2vw,2.8rem)] font-black leading-tight
-                           bg-gradient-to-r from-white via-[#ffe0c7] to-[#ffb78a]
-                           bg-clip-text text-transparent"
-              >
-                Loved by job seekers worldwide.
-              </h2>
-            </div>
-            <p className="text-sm md:text-[15px] text-[#d0d0e0] max-w-xl leading-relaxed">
-              People use FluentFox to turn shaky, uncertain answers into confident
-              stories employers remember.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3 text-[13px]">
-            {[
-              {
-                name: "Ananya, Product Analyst",
-                quote:
-                  "FluentFox turned my vague stories into sharp, structured answers. I finally stopped rambling in interviews.",
-                avatar:
-                  "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=400"
-              },
-              {
-                name: "James, Software Engineer",
-                quote:
-                  "Practicing out loud with instant on‑screen guidance made a massive difference. I landed 2 offers in 3 weeks.",
-                avatar:
-                  "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400"
-              },
-              {
-                name: "Sara, Career Switcher",
-                quote:
-                  "I struggled to explain my transition story. FluentFox helped me frame my past roles so they made sense for tech.",
-                avatar:
-                  "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=400"
-              }
-            ].map((t) => (
-              <div
-                key={t.name}
-                className="relative rounded-2xl bg-white/5 border border-white/10 p-5
-                           backdrop-blur-md overflow-hidden
-                           transition-all duration-300 hover:-translate-y-2 hover:-rotate-1 hover:shadow-2xl"
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <img
-                    src={t.avatar}
-                    alt={t.name}
-                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-white/40"
-                  />
-                  <div>
-                    <p className="text-[10px] sm:text-[12px] uppercase tracking-[0.16em] text-white/60">
-                      VERIFIED USER
-                    </p>
-                    <p className="text-[13px] font-semibold">{t.name}</p>
-                  </div>
-                </div>
-                <p className="text-[12px] sm:text-[13px] leading-relaxed text-[#f5f5ff]">
-                  “{t.quote}”
-                </p>
-                <div className="pointer-events-none absolute -right-6 -bottom-10 h-24 w-24 rounded-full bg-gradient-to-tr from-[#ff4b00]/50 to-transparent opacity-60" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* EXTRA VISUALS: PRACTICE SNAPSHOTS */}
-      <section className="bg-[#ffffff] text-black py-14 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-            <div>
-              <p className="uppercase tracking-[0.18em] text-[10px] sm:text-[11px] font-semibold text-[#ff4b00]">
-                PRACTICE SNAPSHOTS
-              </p>
-              <h2 className="text-[clamp(1.8rem,3vw,2.4rem)] font-black leading-tight">
-                See where FluentFox fits into your routine.
-              </h2>
-            </div>
-            <p className="text-sm md:text-[15px] text-[#444] max-w-xl leading-relaxed">
-              Use FluentFox alongside your laptop, notes, and whiteboards to turn
-              solo prep time into focused, realistic interview practice sessions.
-            </p>
-          </div>
-
-          {/* IMAGE GRID 1 */}
-          <div className="grid gap-4 sm:grid-cols-3 text-[12px]">
-            <div className="rounded-2xl overflow-hidden shadow-md group relative">
-              <img
-                src="https://images.pexels.com/photos/1181298/pexels-photo-1181298.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                alt="Person practicing answers with a laptop and headphones"
-                className="w-full h-40 sm:h-48 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-              <div className="absolute bottom-3 left-3 right-3 text-white">
-                <p className="text-[10px] uppercase tracking-[0.16em] mb-1">
-                  SOLO PRACTICE
-                </p>
-                <p className="text-[12px] leading-snug">
-                  Rehearse key answers in a quiet space with on‑screen support.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl overflow-hidden shadow-md group relative">
-              <img
-                src="https://images.pexels.com/photos/6177615/pexels-photo-6177615.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                alt="Student preparing online interview in a study space"
-                className="w-full h-40 sm:h-48 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-              <div className="absolute bottom-3 left-3 right-3 text-white">
-                <p className="text-[10px] uppercase tracking-[0.16em] mb-1">
-                  CAMPUS PREP
-                </p>
-                <p className="text-[12px] leading-snug">
-                  Pair FluentFox with campus placement prep and mock interviews.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl overflow-hidden shadow-md group relative">
-              <img
-                src="https://images.pexels.com/photos/5904181/pexels-photo-5904181.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                alt="Remote worker preparing with notebook and laptop"
-                className="w-full h-40 sm:h-48 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-              <div className="absolute bottom-3 left-3 right-3 text-white">
-                <p className="text-[10px] uppercase tracking-[0.16em] mb-1">
-                  CAREER SWITCH
-                </p>
-                <p className="text-[12px] leading-snug">
-                  Practice telling your transition story before high‑stakes calls.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* IMAGE STRIP 2 */}
-          <div className="grid gap-4 sm:grid-cols-[1.6fr_1.4fr] mt-4">
-            <div className="rounded-2xl overflow-hidden shadow-md group">
-              <img
-                src="https://images.pexels.com/photos/3861958/pexels-photo-3861958.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                alt="Group of people preparing together"
-                className="w-full h-40 sm:h-52 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-              />
-            </div>
-            <div className="rounded-2xl overflow-hidden shadow-md group">
-              <img
-                src="https://images.pexels.com/photos/3861972/pexels-photo-3861972.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                alt="Desk with laptop and coffee"
-                className="w-full h-40 sm:h-52 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* PRODUCT GALLERY / UI HIGHLIGHTS */}
-      <section className="bg-[#f1f6ff] text-black py-14 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto space-y-8">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-            <div>
-              <p className="uppercase tracking-[0.18em] text-[10px] sm:text-[11px] font-semibold text-[#0077ff]">
-                LIVE INTERFACE
-              </p>
-              <h2 className="text-[clamp(1.8rem,3vw,2.4rem)] font-black leading-tight">
-                A clean, focused layout made for real‑time speaking.
-              </h2>
-            </div>
-            <p className="text-sm md:text-[15px] text-[#38435f] max-w-xl leading-relaxed">
-              FluentFox keeps the screen simple: a live question area, a
-              structured answer preview, and focused coaching hints — no clutter,
-              pop‑ups, or busy UI.
-            </p>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-[1.6fr_1.4fr] items-stretch">
-            <div className="rounded-3xl bg-white shadow-lg overflow-hidden relative group">
-              <img
-                src="https://images.pexels.com/photos/1181675/pexels-photo-1181675.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                alt="Screenshot-like composition of interview practice UI"
-                className="w-full h-56 sm:h-72 object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-              />
-              <div className="absolute bottom-4 left-4 bg-black/70 text-white text-[11px] px-3 py-2 rounded-full uppercase tracking-[0.16em]">
-                Desktop session
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-rows-2">
-              <div className="rounded-2xl bg-white shadow-md overflow-hidden relative group">
-                <img
-                  src="https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                  alt="Mobile view of practice assistant"
-                  className="w-full h-32 sm:h-36 object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                <div className="absolute bottom-2 left-3 right-3 text-white text-[12px]">
-                  On‑screen prompts that stay readable even on small displays.
-                </div>
-              </div>
-              <div className="rounded-2xl bg-white shadow-md overflow-hidden relative group">
-                <img
-                  src="https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                  alt="Candidate taking notes during practice"
-                  className="w-full h-32 sm:h-36 object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                <div className="absolute bottom-2 left-3 right-3 text-white text-[12px]">
-                  Save your favorite answers and refine them over time.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ SECTION */}
-      <section className="bg-[#f6f1e8] text-black py-14 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto space-y-10">
-          <h2 className="text-[clamp(1.9rem,3vw,2.6rem)] font-black leading-tight">
-            Frequently asked questions
-          </h2>
-
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm text-[13px] divide-y divide-[#eee]">
-            {faqItems.map((item, index) => {
-              const isOpen = openFaq === index;
+          <div className="faq-list">
+            {faqs.map((item, idx) => {
+              const open = faq === idx;
               return (
-                <button
-                  key={item.q}
-                  type="button"
-                  onClick={() =>
-                    setOpenFaq((prev) => (prev === index ? -1 : index))
-                  }
-                  className={`w-full text-left grid grid-cols-[50px_minmax(0,1fr)] sm:grid-cols-[60px_minmax(0,1fr)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077ff]/60 ${
-                    isOpen ? "bg-[#f8fbff]" : "bg-white"
-                  } transition-colors duration-200`}
-                >
-                  <div className="bg-[#0077ff] text-white flex items-center justify-center text-[11px] sm:text-[12px] font-semibold">
-                    {String(index + 1).padStart(2, "0")}
-                  </div>
-                  <div className="px-3 sm:px-4 py-3 sm:py-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="font-semibold text-[13px] sm:text-[14px]">
-                        {item.q}
-                      </p>
-                      <span
-                        className={`mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ddd] text-[11px] text-[#666] transition-transform duration-200 ${
-                          isOpen
-                            ? "rotate-45 bg-[#0077ff] text-white border-[#0077ff]"
-                            : ""
-                        }`}
-                      >
-                        +
-                      </span>
+                <div key={item.q} className="faq-item">
+                  <button className={`faq-btn ${open ? "open" : ""}`} onClick={() => setFaq((p) => (p === idx ? -1 : idx))}>
+                    <div className="faq-num">{String(idx + 1).padStart(2, "0")}</div>
+                    <div className="faq-inner">
+                      <div className="faq-row">
+                        <p className="faq-q">{item.q}</p>
+                        <span className={`faq-ic ${open ? "open" : ""}`}>+</span>
+                      </div>
+                      <div style={{ maxHeight: open ? 260 : 0, overflow: "hidden", transition: "max-height .32s ease, opacity .28s ease", opacity: open ? 1 : 0 }}>
+                        <p className="faq-a">{item.a}</p>
+                      </div>
                     </div>
-                    <div
-                      className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        isOpen
-                          ? "max-h-[280px] opacity-100 mt-2"
-                          : "max-h-0 opacity-0"
-                      }`}
-                    >
-                      <p className="text-[12px] sm:text-[13px] text-[#555] leading-relaxed pb-1">
-                        {item.a}
-                      </p>
-                    </div>
-                  </div>
-                </button>
+                  </button>
+                </div>
               );
             })}
           </div>
-
-          {/* FAQ IMAGE */}
-          <div className="rounded-[24px] sm:rounded-[32px] overflow-hidden shadow-md">
-            <img
-              src="https://images.pexels.com/photos/3861964/pexels-photo-3861964.jpeg?auto=compress&cs=tinysrgb&w=1200"
-              alt="People helping each other prepare for interviews"
-              className="w-full h-full object-cover"
-            />
-          </div>
         </div>
       </section>
 
-      {/* FINAL CTA SECTION */}
-      <section className="bg-gradient-to-r from-[#ff4b00] via-[#ff7a24] to-[#ff4b00] text-white py-14 sm:py-16 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-        <div className="pointer-events-none absolute -left-16 bottom-0 h-44 w-44 rounded-full bg-black/20 blur-3xl" />
-
-        <div className="max-w-6xl mx-auto relative z-10 grid gap-8 md:grid-cols-[2.1fr_1.4fr] items-center">
-          <div className="space-y-4">
-            <p className="uppercase tracking-[0.18em] text-[10px] sm:text-[11px] font-semibold text-[#ffe9dd]">
-              READY TO PRACTICE DIFFERENTLY?
-            </p>
-            <h2 className="text-[clamp(2rem,3.2vw,2.7rem)] font-black leading-tight">
-              Turn your next interview into a calm, confident conversation.
-            </h2>
-            <p className="text-sm md:text-[15px] leading-relaxed text-[#fff3ea] max-w-xl">
-              Share a bit about your goals and we’ll send access details and
-              pricing. Practice live answers, get comfortable speaking, and walk
-              into interviews knowing you’re prepared.
-            </p>
-
-            <div className="flex flex-wrap gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => navigate("/access-pricing")}
-                className="px-7 py-3 bg-black text-white rounded-full text-[12px] sm:text-[13px] font-semibold tracking-[0.14em] uppercase shadow-lg hover:bg-[#141414] transition"
-              >
-                Request access & pricing
-              </button>
-              <button
-                type="button"
-                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                className="px-6 py-3 border border-white/70 text-white rounded-full text-[12px] sm:text-[13px] font-semibold tracking-[0.14em] uppercase hover:bg-white/10 transition"
-              >
-                Back to top
-              </button>
+      <section className="sec" style={{ background: `linear-gradient(135deg, #d43800, ${ORANGE} 55%, #ff6620)`, color: "#fff", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", right: -60, top: -60, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,.06)", pointerEvents: "none", animation: "softPulse 8s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", left: -80, bottom: -40, width: 240, height: 240, borderRadius: "50%", background: "rgba(0,0,0,.1)", pointerEvents: "none", animation: "softPulse 10s ease-in-out infinite" }} />
+        <div className="inner" style={{ position: "relative", zIndex: 1 }}>
+          <div className="cta2">
+            <div>
+              <div className="logo-row" style={{ marginBottom: 18 }}>
+                <span className="logo-badge" style={{ width: 36, height: 36, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.14)" }}>
+                  <img src={FLUENTFOX_LOGO} alt="FluentFox" style={{ width: 28, height: 28, objectFit: "contain" }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                </span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase" }}>FluentFox</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.55)", marginTop: 2 }}>Premium AI interview assistant</div>
+                </div>
+              </div>
+              <h2 style={{ marginBottom: 14 }}>Your next interview could be your best one yet.</h2>
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,.76)", lineHeight: 1.72, marginBottom: 24, maxWidth: 480 }}>
+                Sign up, buy one credit, and start your first session in under five minutes. If it does not work within the first ten minutes, your credit comes back automatically.
+              </p>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button onClick={() => nav("/access-pricing")} style={{ background: "#111", color: "#fff", fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", border: "none", borderRadius: 999, padding: "13px 28px", cursor: "pointer", transition: "transform .18s ease, opacity .18s ease" }} onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.opacity = ".92"; }} onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.opacity = "1"; }}>
+                  Get started
+                </button>
+                <button onClick={() => document.getElementById("pricing-sec")?.scrollIntoView({ behavior: "smooth" })} style={{ background: "transparent", color: "#fff", fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: ".06em", border: "1.5px solid rgba(255,255,255,.38)", borderRadius: 999, padding: "12px 22px", cursor: "pointer", transition: "transform .18s ease, background .18s ease" }} onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.background = "rgba(255,255,255,.07)"; }} onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = "transparent"; }}>
+                  See pricing
+                </button>
+              </div>
             </div>
-          </div>
-
-          <div className="rounded-3xl bg-black/20 border border-white/40 p-5 sm:p-6 backdrop-blur-md shadow-xl space-y-4">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-[#ffe3d0]">
-              WHAT YOU GET
-            </p>
-            <ul className="space-y-2 text-[13px]">
-              <li className="flex gap-2">
-                <span className="mt-[6px] h-[6px] w-[6px] rounded-full bg-[#16ff72]" />
-                <span>Real‑time answer previews tuned to your resume & roles.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="mt-[6px] h-[6px] w-[6px] rounded-full bg-[#16ff72]" />
-                <span>Structured templates for behavioral & technical questions.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="mt-[6px] h-[6px] w-[6px] rounded-full bg-[#16ff72]" />
-                <span>Private practice sessions — audio never stored or reused.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="mt-[6px] h-[6px] w-[6px] rounded-full bg-[#16ff72]" />
-                <span>Early access to upcoming coaching & feedback features.</span>
-              </li>
-            </ul>
+            <div className="what-box">
+              <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(255,255,255,.42)", marginBottom: 6 }}>What you get</p>
+              <ul className="chk">
+                {[
+                  "Real-time answers matched to your resume and the specific role.",
+                  "Structured responses for behavioural, technical, and situational questions.",
+                  "Complete privacy — audio stays on your device, never transmitted.",
+                  "Auto-refund if session ends before 10 minutes, no questions asked.",
+                  "Works on Zoom, Meet, Teams, phone calls, and any other platform.",
+                ].map((item) => (
+                  <li key={item}><span className="cdot" />{item}</li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
     </div>
   );
-};
-
-export default Homepage;
+}
