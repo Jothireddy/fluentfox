@@ -14,6 +14,8 @@ import {
   joinAffiliate,
   fetchMyAffiliateStats,
   fetchMyReferrals,
+  createPaymentOrder,
+  verifyPayment,
 } from "./api3";
 
 const FF = {
@@ -662,6 +664,8 @@ function OverviewTab({ user, metrics, onSwitchTab, lastPayment, lastKey, affilia
   );
 }
 
+// Replace the entire CreditsTab function in UserDashboard.jsx with this
+
 function CreditsTab({ user, onRefresh, onSwitchTab }) {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -670,7 +674,6 @@ function CreditsTab({ user, onRefresh, onSwitchTab }) {
 
   useEffect(() => {
     let mounted = true;
-
     async function load() {
       try {
         setLoading(true);
@@ -681,33 +684,108 @@ function CreditsTab({ user, onRefresh, onSwitchTab }) {
         console.error(err);
         if (mounted) {
           setPlans(FALLBACK_PLANS);
-          setMsg({ type: "info", text: "Using fallback plans because the plans API was unavailable." });
+          setMsg({ type: "info", text: "Using fallback plans — plans API was unavailable." });
         }
       } finally {
         if (mounted) setLoading(false);
       }
     }
-
     load();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   async function buyPlan(plan) {
     setBuying(plan.id);
     setMsg(null);
+
+    // ── TEST MODE: instant credits, no Razorpay ──
+    const isTestMode = true; // ← set to false once Razorpay keys are live
+
+    if (isTestMode) {
+      try {
+        const result = await testAddCredits(plan.id);
+        const added = result?.credits_added ?? plan.credits ?? "—";
+        const bal   = result?.credits_balance ?? "—";
+        setMsg({ type: "success", text: `${added} credits added. New balance: ${bal}.` });
+        onRefresh?.();
+      } catch (err) {
+        setMsg({ type: "error", text: err.message || "Failed to add credits." });
+      } finally {
+        setBuying(null);
+      }
+      return;
+    }
+
+    // ── LIVE MODE: Razorpay checkout ──
+    // Make sure Razorpay script is loaded in index.html:
+    // <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     try {
-      const result = await testAddCredits(plan.id);
-      const added = result?.credits_added ?? result?.added_credits ?? plan.credits ?? "—";
-      const bal = result?.credits_balance ?? result?.balance ?? user?.credits ?? "—";
-      setMsg({
-        type: "success",
-        text: `Credits added successfully. Added ${added} credits. New balance: ${bal}.`,
+      // Step 1: create order on backend
+      const order = await createPaymentOrder(plan.id);
+
+      // 100% coupon — already credited, no popup needed
+      if (order.free_order) {
+        setMsg({ type: "success", text: `Free plan applied! ${order.credits_added} credits added.` });
+        onRefresh?.();
+        setBuying(null);
+        return;
+      }
+
+      // Step 2: open Razorpay checkout
+      await new Promise((resolve, reject) => {
+        const rzp = new window.Razorpay({
+          key:         order.key_id,
+          amount:      order.amount,
+          currency:    order.currency || "INR",
+          order_id:    order.order_id,
+          name:        "FluentFox",
+          description: `${plan.name} — ${plan.credits} credit${plan.credits > 1 ? "s" : ""}`,
+          handler: async (response) => {
+            try {
+              // Step 3: verify with backend
+              let result = await verifyPayment(
+                response.razorpay_order_id,
+                response.razorpay_payment_id,
+                response.razorpay_signature,
+              );
+
+              // If webhook is mid-processing, retry once after 2.5s
+              if (result?.retry) {
+                await new Promise(r => setTimeout(r, 2500));
+                result = await verifyPayment(
+                  response.razorpay_order_id,
+                  response.razorpay_payment_id,
+                  response.razorpay_signature,
+                );
+              }
+
+              setMsg({
+                type: "success",
+                text: `Payment successful! ${result.credits_added} credits added. Balance: ${result.credits_balance}.`,
+              });
+              onRefresh?.();
+              resolve();
+            } catch (err) {
+              setMsg({ type: "error", text: err.message || "Payment verification failed. Contact support." });
+              reject(err);
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setMsg({ type: "info", text: "Payment cancelled." });
+              resolve();
+            },
+          },
+          prefill: {
+            email: user?.email || "",
+            name:  user?.name  || "",
+          },
+          theme: { color: "#ff4b00" },
+        });
+        rzp.open();
       });
-      onRefresh?.();
     } catch (err) {
-      setMsg({ type: "error", text: err.message || "Failed to purchase plan." });
+      setMsg({ type: "error", text: err.message || "Failed to initiate payment." });
     } finally {
       setBuying(null);
     }
@@ -723,7 +801,7 @@ function CreditsTab({ user, onRefresh, onSwitchTab }) {
     <div style={{ animation: "ffFadeIn 0.25s ease" }}>
       <SectionTitle
         title="Credits & Plans"
-        subtitle="Add credits instantly. If the plans API is unavailable, fallback cards keep the UI usable."
+        subtitle="Add credits to your account. 1 credit = 1 live interview session."
         action={
           <ActionBtn onClick={() => onSwitchTab("keys")} variant="ghost" small>
             Go to keys
@@ -733,18 +811,9 @@ function CreditsTab({ user, onRefresh, onSwitchTab }) {
 
       {msg ? <Alert type={msg.type}>{msg.text}</Alert> : null}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.1fr .9fr",
-          gap: 14,
-          marginBottom: 14,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 14, marginBottom: 14 }}>
         <Card accent={FF.orange} style={{ background: "linear-gradient(135deg, #171720 0%, #101019 100%)" }}>
-          <Pill bg="rgba(255,75,0,0.16)" color="#ffb78a">
-            Credit balance
-          </Pill>
+          <Pill bg="rgba(255,75,0,0.16)" color="#ffb78a">Credit balance</Pill>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
             <div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -757,64 +826,30 @@ function CreditsTab({ user, onRefresh, onSwitchTab }) {
                 1 credit = 1 live interview session
               </p>
             </div>
-            <div
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(255,75,0,.34), transparent 68%)",
-                border: `2px solid ${FF.orange}44`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 32,
-                flexShrink: 0,
-              }}
-            >
-              🎯
-            </div>
+            <div style={{
+              width: 80, height: 80, borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(255,75,0,.34), transparent 68%)",
+              border: `2px solid ${FF.orange}44`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 32, flexShrink: 0,
+            }}>🎯</div>
           </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-              marginTop: 18,
-              paddingTop: 18,
-              borderTop: "1px solid rgba(255,255,255,.08)",
-            }}
-          >
-            <ActionBtn onClick={() => onSwitchTab("keys")} variant="primary">
-              Generate key
-            </ActionBtn>
-            <ActionBtn onClick={() => onSwitchTab("payments")} variant="ghost">
-              Payment history
-            </ActionBtn>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18, paddingTop: 18, borderTop: "1px solid rgba(255,255,255,.08)" }}>
+            <ActionBtn onClick={() => onSwitchTab("keys")} variant="primary">Generate key</ActionBtn>
+            <ActionBtn onClick={() => onSwitchTab("payments")} variant="ghost">Payment history</ActionBtn>
           </div>
         </Card>
 
         <Card dark={false}>
-          <Pill bg="rgba(255,75,0,0.1)" color={FF.orange}>
-            Quick guide
-          </Pill>
+          <Pill bg="rgba(255,75,0,0.1)" color={FF.orange}>Quick guide</Pill>
           <div style={{ display: "grid", gap: 10 }}>
             {[
-              "Buy a plan to add credits instantly in test mode.",
-              "Generate an interview key when you are ready to start a session.",
-              "Keys expire after 6 hours if unused.",
+              "Buy a plan below to add credits to your account.",
+              "Generate an interview key when you're ready to start a session.",
+              "Keys expire after 6 hours if unused — credit is refunded.",
+              "Sessions under 10 minutes are automatically refunded.",
             ].map((line) => (
-              <div
-                key={line}
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  alignItems: "flex-start",
-                  fontSize: 13,
-                  color: "#444",
-                  lineHeight: 1.6,
-                }}
-              >
+              <div key={line} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "#444", lineHeight: 1.6 }}>
                 <span style={{ color: FF.green, marginTop: 2 }}>●</span>
                 <span>{line}</span>
               </div>
@@ -823,112 +858,72 @@ function CreditsTab({ user, onRefresh, onSwitchTab }) {
         </Card>
       </div>
 
-      <SectionTitle
-        title="Choose a plan"
-        subtitle="Credits are added instantly in this environment."
-      />
+      <SectionTitle title="Choose a plan" subtitle="Credits are added to your account immediately after payment." />
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 40 }}>
-          <Spinner />
-        </div>
+        <div style={{ textAlign: "center", padding: 40 }}><Spinner /></div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 14,
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14 }}>
           {sortedPlans.map((plan, index) => {
             const popular = plan.popular || index === 1;
-            const features = [
-              `${plan.credits ?? "—"} credits`,
-              plan.interval || "Instant access",
-              "Private session support",
-            ];
+            const perSession = plan.credits > 1
+              ? `₹${Math.round(Number(plan.price_inr) / plan.credits)}/session`
+              : null;
 
             return (
-              <div
-                key={plan.id}
-                style={{
-                  background: popular
-                    ? "linear-gradient(180deg, #1d1622 0%, #111118 100%)"
-                    : "#fff",
-                  color: popular ? FF.textDark : FF.textLight,
-                  border: `1px solid ${popular ? "rgba(255,75,0,.25)" : FF.borderLight}`,
-                  borderRadius: 20,
-                  padding: "20px",
-                  position: "relative",
-                  boxShadow: popular
-                    ? "0 18px 36px rgba(255,75,0,.08)"
-                    : "0 12px 28px rgba(0,0,0,.05)",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
+              <div key={plan.id} style={{
+                background: popular
+                  ? "linear-gradient(180deg, #1d1622 0%, #111118 100%)"
+                  : "#fff",
+                color: popular ? FF.textDark : FF.textLight,
+                border: `1px solid ${popular ? "rgba(255,75,0,.25)" : FF.borderLight}`,
+                borderRadius: 20,
+                padding: "20px",
+                position: "relative",
+                boxShadow: popular ? "0 18px 36px rgba(255,75,0,.08)" : "0 12px 28px rgba(0,0,0,.05)",
+                display: "flex",
+                flexDirection: "column",
+              }}>
                 {popular ? (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: -10,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      background: FF.orange,
-                      color: "#fff",
-                      fontSize: 9,
-                      fontWeight: 900,
-                      letterSpacing: "0.16em",
-                      textTransform: "uppercase",
-                      padding: "4px 12px",
-                      borderRadius: 999,
-                    }}
-                  >
-                    Most popular
-                  </div>
+                  <div style={{
+                    position: "absolute", top: -10, left: "50%",
+                    transform: "translateX(-50%)",
+                    background: FF.orange, color: "#fff",
+                    fontSize: 9, fontWeight: 900, letterSpacing: "0.16em",
+                    textTransform: "uppercase", padding: "4px 12px", borderRadius: 999,
+                  }}>Most popular</div>
                 ) : null}
 
                 <Badge label={plan.name} color={popular ? "#ffb78a" : FF.orange} dark={popular} />
 
-                <p
-                  style={{
-                    fontFamily: "'Fraunces', serif",
-                    fontSize: 28,
-                    fontWeight: 900,
-                    margin: "8px 0 8px",
-                    color: popular ? "#fff" : "#111",
-                  }}
-                >
-                  {money(plan.price_inr)}
-                </p>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, margin: "8px 0 4px" }}>
+                  <p style={{
+                    fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900,
+                    margin: 0, color: popular ? "#fff" : "#111",
+                  }}>
+                    ₹{Number(plan.price_inr).toLocaleString("en-IN")}
+                  </p>
+                </div>
 
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: popular ? FF.mutedDark : "#555",
-                    lineHeight: 1.65,
-                    margin: "0 0 16px",
-                  }}
-                >
+                {perSession && (
+                  <p style={{ fontSize: 11, fontWeight: 700, color: popular ? "#ffb78a" : FF.orange, margin: "0 0 8px" }}>
+                    {perSession}
+                  </p>
+                )}
+
+                <p style={{ fontSize: 13, color: popular ? FF.mutedDark : "#555", lineHeight: 1.65, margin: "0 0 16px" }}>
                   {plan.description}
                 </p>
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-                  {features.map((f) => (
-                    <span
-                      key={f}
-                      style={{
-                        background: popular ? "rgba(255,255,255,.06)" : "#f6f6f7",
-                        border: `1px solid ${popular ? "rgba(255,255,255,.08)" : "#ececf2"}`,
-                        color: popular ? "#dcdce8" : "#444",
-                        padding: "7px 11px",
-                        borderRadius: 999,
-                        fontSize: 11,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {f}
-                    </span>
+                  {[`${plan.credits} session${plan.credits > 1 ? "s" : ""}`, "Instant access", "Private audio"].map((f) => (
+                    <span key={f} style={{
+                      background: popular ? "rgba(255,255,255,.06)" : "#f6f6f7",
+                      border: `1px solid ${popular ? "rgba(255,255,255,.08)" : "#ececf2"}`,
+                      color: popular ? "#dcdce8" : "#444",
+                      padding: "7px 11px", borderRadius: 999,
+                      fontSize: 11, fontWeight: 700,
+                    }}>{f}</span>
                   ))}
                 </div>
 
@@ -938,7 +933,7 @@ function CreditsTab({ user, onRefresh, onSwitchTab }) {
                   loading={buying === plan.id}
                   fullWidth
                 >
-                  {buying === plan.id ? "Adding…" : "Buy now"}
+                  {buying === plan.id ? "Processing…" : "Buy now"}
                 </ActionBtn>
               </div>
             );
@@ -948,8 +943,7 @@ function CreditsTab({ user, onRefresh, onSwitchTab }) {
 
       <div style={{ marginTop: 16 }}>
         <Alert type="info">
-          💡 <strong>Test mode:</strong> credits are added instantly here. If you later switch to live Razorpay,
-          the API file already has the order/verify helpers ready.
+          💳 Payments are processed securely via Razorpay. Credits appear in your account immediately after payment confirmation.
         </Alert>
       </div>
     </div>
