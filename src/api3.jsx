@@ -5,7 +5,7 @@
 // - Razorpay live payments (with test mode fallback)
 // - Affiliate + coupon codes at signup/google login
 
-const API_BASE = "http://34.93.25.2:3001";
+const API_BASE = "https://api.fluentfox.in";
 
 // ─── TOKEN STORAGE ────────────────────────────────────────────────────────────
 let ffToken = localStorage.getItem("ff_token");
