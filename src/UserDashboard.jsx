@@ -2,79 +2,51 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ffGetMe,
-  ffLogout,
-  fetchActivePlans,
-  testAddCredits,
-  generateUserKey,
-  fetchMyKeys,
-  startSession,
-  stopSession,
-  fetchMyPaymentHistory,
-  joinAffiliate,
-  fetchMyAffiliateStats,
-  fetchMyReferrals,
-  createPaymentOrder,
-  verifyPayment,
+  ffGetMe, ffLogout, fetchActivePlans, testAddCredits,
+  generateUserKey, fetchMyKeys,
+  fetchMyPaymentHistory, joinAffiliate, fetchMyAffiliateStats,
+  fetchMyReferrals, createPaymentOrder, verifyPayment,
 } from "./api3";
 
-const FF = {
-  orange: "#ff4b00",
-  orangeLight: "#ff7a24",
-  orangePale: "#fff5e6",
-  blue: "#0077ff",
-  dark: "#0b0b10",
-  dark2: "#111118",
-  dark3: "#18181f",
-  card: "#15151d",
-  card2: "#ffffff",
-  borderDark: "rgba(255,255,255,0.08)",
-  borderLight: "rgba(0,0,0,0.08)",
-  mutedDark: "rgba(255,255,255,0.42)",
-  mutedLight: "#667085",
-  textDark: "#eef2ff",
-  textLight: "#111111",
-  green: "#16c784",
-  yellow: "#f5a623",
-  red: "#ef4444",
+/* ─────────────────────────────────────────────
+   DESIGN TOKENS
+───────────────────────────────────────────── */
+const C = {
+  orange:      "#ff4b00",
+  orangeSoft:  "rgba(255,75,0,0.08)",
+  orangeBorder:"rgba(255,75,0,0.18)",
+  green:       "#16a34a",
+  greenSoft:   "rgba(22,163,74,0.08)",
+  blue:        "#2563eb",
+  blueSoft:    "rgba(37,99,235,0.08)",
+  yellow:      "#d97706",
+  yellowSoft:  "rgba(217,119,6,0.08)",
+  red:         "#dc2626",
+  bg:          "#f9fafb",
+  surface:     "#ffffff",
+  border:      "#e5e7eb",
+  borderStrong:"#d1d5db",
+  text:        "#111827",
+  textMid:     "#374151",
+  textMuted:   "#6b7280",
+  textFaint:   "#9ca3af",
 };
 
 const TABS = [
-  { id: "overview", label: "Overview", icon: "▣" },
-  { id: "credits", label: "Credits & Plans", icon: "💳" },
-  { id: "keys", label: "Interview Keys", icon: "🗝️" },
-  { id: "payments", label: "Payments", icon: "📄" },
-  { id: "affiliate", label: "Affiliate", icon: "🤝" },
+  { id: "overview",  label: "Overview",       icon: "◈" },
+  { id: "credits",   label: "Credits & Plans", icon: "◎" },
+  { id: "keys",      label: "Interview Keys",  icon: "⌥" },
+  { id: "payments",  label: "Payments",        icon: "↻" },
+  { id: "affiliate", label: "Affiliate",       icon: "⟐" },
 ];
 
+/* ─────────────────────────────────────────────
+   FALLBACK & HELPERS
+───────────────────────────────────────────── */
 const FALLBACK_PLANS = [
-  {
-    id: "standard",
-    name: "Standard",
-    description: "Unlimited sessions · Private audio · Resume & JD upload",
-    price_inr: 499,
-    credits: 20,
-    popular: false,
-    active: true,
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    description: "Everything in Standard + coaching tools, feedback & mock sessions",
-    price_inr: 999,
-    credits: 50,
-    popular: true,
-    active: true,
-  },
-  {
-    id: "team",
-    name: "Team",
-    description: "For cohorts, colleges, and hiring teams that need bundled access",
-    price_inr: 1999,
-    credits: 100,
-    popular: false,
-    active: true,
-  },
+  { id:"starter", name:"Starter", description:"Perfect for one interview", price_inr:299, credits:5,  popular:false, active:true },
+  { id:"pro",     name:"Pro",     description:"Best for active job seekers", price_inr:799, credits:20, popular:true,  active:true },
+  { id:"team",    name:"Team",    description:"Bulk sessions for groups", price_inr:1499, credits:50, popular:false, active:true },
 ];
 
 function isActiveKey(k) {
@@ -84,1178 +56,567 @@ function isActiveKey(k) {
 }
 
 function money(v) {
-  if (v === null || v === undefined || v === "") return "Contact us";
+  if (v === null || v === undefined || v === "") return "—";
   const n = Number(v);
-  if (Number.isNaN(n)) return String(v);
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: n % 1 === 0 ? 0 : 2,
-  }).format(n);
+  if (isNaN(n)) return String(v);
+  return new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits: n % 1 === 0 ? 0 : 2 }).format(n);
 }
 
-function formatDate(dateLike) {
-  if (!dateLike) return "—";
-  const d = new Date(dateLike);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+function formatDate(d) {
+  if (!d) return "—";
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return "—";
+  return dt.toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" });
 }
 
 function timeLeft(expiresAt) {
-  if (!expiresAt) return "—";
+  if (!expiresAt) return "";
   const diff = new Date(expiresAt) - new Date();
   if (diff <= 0) return "Expired";
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
+  const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000);
   return h > 0 ? `${h}h ${m}m left` : `${m}m left`;
 }
 
 function normalizeList(data) {
   if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.plans)) return data.plans;
-  if (Array.isArray(data?.payments)) return data.payments;
-  if (Array.isArray(data?.keys)) return data.keys;
-  if (Array.isArray(data?.referrals)) return data.referrals;
-  if (Array.isArray(data?.data)) return data.data;
+  for (const key of ["plans","payments","keys","referrals","data"]) {
+    if (Array.isArray(data?.[key])) return data[key];
+  }
   return [];
 }
 
-function normalizePlan(p, index = 0) {
+function normalizePlan(p, i = 0) {
   return {
-    id: p.id || p._id || p.plan_id || p.planId || `plan-${index}`,
-    name: p.name || p.title || `Plan ${index + 1}`,
-    description:
-      p.description ||
-      p.desc ||
-      "A flexible plan for interview practice and access.",
-    price_inr:
-      p.price_inr ??
-      p.price ??
-      p.amount_inr ??
-      p.amount ??
-      p.monthly_price ??
-      p.cost ??
-      null,
-    credits: p.credits ?? p.credit_count ?? p.sessions ?? p.session_credits ?? 1,
-    interval: p.interval || p.billing_cycle || p.period || "",
-    popular: Boolean(p.popular || p.is_popular || p.featured || index === 1),
-    active: p.active !== false,
+    id:          p.id || p._id || `plan-${i}`,
+    name:        p.name || p.title || `Plan ${i+1}`,
+    description: p.description || p.desc || "A flexible plan for interview access.",
+    price_inr:   p.price_inr ?? p.price ?? p.amount_inr ?? p.amount ?? null,
+    credits:     p.credits ?? p.sessions ?? 1,
+    popular:     Boolean(p.popular || p.is_popular || p.featured || i === 1),
+    active:      p.active !== false,
   };
 }
 
-function Spinner() {
+/* ─────────────────────────────────────────────
+   PRIMITIVE COMPONENTS
+───────────────────────────────────────────── */
+function Spinner({ size = 16, color = C.orange }) {
   return (
-    <span
-      style={{
-        width: 18,
-        height: 18,
-        border: "2px solid rgba(255,255,255,0.16)",
-        borderTopColor: FF.orange,
-        borderRadius: "50%",
-        animation: "ffSpin 0.75s linear infinite",
-        display: "inline-block",
-      }}
-    />
+    <span style={{ width:size, height:size, border:`2px solid rgba(0,0,0,0.08)`,
+      borderTopColor:color, borderRadius:"50%", animation:"spin .7s linear infinite",
+      display:"inline-block", flexShrink:0 }} />
   );
 }
 
-function Pill({ children, bg = "rgba(255,75,0,0.1)", color = FF.orange }) {
+function Tag({ children, color = C.orange, bg }) {
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 10,
-        fontWeight: 800,
-        letterSpacing: "0.14em",
-        textTransform: "uppercase",
-        background: bg,
-        color,
-        borderRadius: 999,
-        padding: "4px 12px",
-        marginBottom: 12,
-      }}
-    >
+    <span style={{ display:"inline-flex", alignItems:"center", fontSize:10, fontWeight:700,
+      letterSpacing:".1em", textTransform:"uppercase", color,
+      background: bg || `${color}14`, borderRadius:6,
+      padding:"3px 8px", whiteSpace:"nowrap" }}>
       {children}
     </span>
   );
 }
 
-function SLabel({ children, light = false }) {
-  return (
-    <p
-      style={{
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        color: light ? "#666" : "rgba(255,255,255,0.55)",
-        margin: "0 0 10px",
-      }}
-    >
-      {children}
-    </p>
-  );
-}
-
-function Badge({ label, color = FF.orange, dark = false }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "4px 10px",
-        borderRadius: 999,
-        fontSize: 10,
-        fontWeight: 800,
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        background: dark ? `${color}1f` : `${color}14`,
-        color,
-        border: `1px solid ${color}44`,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-function Card({ children, accent, dark = true, style = {} }) {
-  return (
-    <div
-      style={{
-        background: dark
-          ? "linear-gradient(180deg, rgba(26,26,34,0.98), rgba(16,16,24,0.98))"
-          : "#fff",
-        border: dark ? `1px solid ${FF.borderDark}` : `1px solid ${FF.borderLight}`,
-        borderRadius: 20,
-        padding: "18px 20px",
-        borderTop: accent ? `3px solid ${accent}` : undefined,
-        boxShadow: dark ? "0 14px 34px rgba(0,0,0,.18)" : "0 14px 34px rgba(0,0,0,.05)",
-        ...style,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Alert({ type = "error", children }) {
-  const colors = {
-    error: ["#c0392b", "#ffb3b3"],
-    info: [FF.blue, "#bddcff"],
-    success: [FF.green, "#b7f0d7"],
+function Btn({ children, onClick, variant="primary", disabled, loading, fullWidth, size="md" }) {
+  const styles = {
+    primary: { bg: C.orange,  color:"#fff", border:"none" },
+    ghost:   { bg:"transparent", color:C.textMid, border:`1px solid ${C.border}` },
+    danger:  { bg:"transparent", color:C.red,  border:`1px solid rgba(220,38,38,.25)` },
+    green:   { bg: C.green,   color:"#fff", border:"none" },
   };
-  const [bg, fg] = colors[type] || colors.error;
-
+  const s = styles[variant] || styles.primary;
+  const pad = size === "sm" ? "7px 14px" : "10px 20px";
+  const fs  = size === "sm" ? 11 : 12;
   return (
-    <div
-      style={{
-        background: `${bg}18`,
-        border: `1px solid ${bg}44`,
-        borderRadius: 14,
-        padding: "11px 14px",
-        fontSize: 12,
-        color: fg,
-        marginBottom: 12,
-        lineHeight: 1.55,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function ActionBtn({
-  onClick,
-  children,
-  variant = "primary",
-  disabled,
-  loading,
-  fullWidth,
-  small,
-}) {
-  const bg = {
-    primary: FF.orange,
-    blue: FF.blue,
-    ghost: "rgba(255,255,255,0.06)",
-    green: FF.green,
-    danger: FF.red,
-  };
-
-  const border = {
-    primary: "none",
-    blue: "none",
-    ghost: "1px solid rgba(255,255,255,0.12)",
-    green: "none",
-    danger: "none",
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled || loading}
-      style={{
-        padding: small ? "7px 12px" : "11px 16px",
-        borderRadius: 999,
-        border: border[variant] || "none",
-        background: bg[variant] || bg.primary,
-        color: "#fff",
-        fontSize: small ? 11 : 12,
-        fontWeight: 800,
-        letterSpacing: "0.09em",
-        textTransform: "uppercase",
-        cursor: disabled || loading ? "not-allowed" : "pointer",
-        opacity: disabled || loading ? 0.6 : 1,
-        width: fullWidth ? "100%" : undefined,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        transition: "transform 0.12s, opacity 0.15s, background 0.15s",
-        whiteSpace: "nowrap",
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled && !loading) e.currentTarget.style.transform = "translateY(-1px)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-      }}
-    >
-      {loading ? <Spinner /> : null}
+    <button onClick={onClick} disabled={disabled||loading}
+      style={{ padding:pad, borderRadius:8, border:s.border, background:s.bg, color:s.color,
+        fontSize:fs, fontWeight:700, letterSpacing:".06em", textTransform:"uppercase",
+        cursor:disabled||loading?"not-allowed":"pointer", opacity:disabled||loading?.6:1,
+        width:fullWidth?"100%":undefined, display:"inline-flex", alignItems:"center",
+        justifyContent:"center", gap:7, transition:"all .14s ease", whiteSpace:"nowrap",
+        fontFamily:"inherit" }}
+      onMouseEnter={e=>{ if(!disabled&&!loading){ e.currentTarget.style.opacity=".82"; e.currentTarget.style.transform="translateY(-1px)"; }}}
+      onMouseLeave={e=>{ e.currentTarget.style.opacity="1"; e.currentTarget.style.transform="none"; }}>
+      {loading && <Spinner size={13} color={variant==="primary"?"#fff":C.orange} />}
       {children}
     </button>
   );
 }
 
-function SectionTitle({ title, subtitle, action }) {
+function Notice({ type="error", children, onClose }) {
+  const map = {
+    error:   { bg:"#fef2f2", border:"#fca5a5", color:"#991b1b", icon:"✕" },
+    success: { bg:"#f0fdf4", border:"#86efac", color:"#166534", icon:"✓" },
+    info:    { bg:"#eff6ff", border:"#93c5fd", color:"#1d4ed8", icon:"ℹ" },
+  };
+  const t = map[type] || map.error;
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "space-between",
-        gap: 16,
-        flexWrap: "wrap",
-        marginBottom: 16,
-      }}
-    >
+    <div style={{ display:"flex", alignItems:"flex-start", gap:10, background:t.bg,
+      border:`1px solid ${t.border}`, borderRadius:10, padding:"12px 14px",
+      fontSize:13, color:t.color, marginBottom:16, lineHeight:1.55 }}>
+      <span style={{ fontWeight:900, flexShrink:0, marginTop:1 }}>{t.icon}</span>
+      <span style={{ flex:1 }}>{children}</span>
+      {onClose && <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer",
+        color:t.color, fontSize:14, padding:0, lineHeight:1, opacity:.6 }}>✕</button>}
+    </div>
+  );
+}
+
+function StatBox({ label, value, sub, color = C.orange }) {
+  return (
+    <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12,
+      padding:"18px 20px", borderLeft:`3px solid ${color}` }}>
+      <p style={{ margin:"0 0 6px", fontSize:11, fontWeight:700, letterSpacing:".1em",
+        textTransform:"uppercase", color:C.textFaint }}>{label}</p>
+      <p style={{ margin:0, fontSize:26, fontWeight:900, color:C.text, lineHeight:1 }}>{value}</p>
+      {sub && <p style={{ margin:"5px 0 0", fontSize:12, color:C.textMuted }}>{sub}</p>}
+    </div>
+  );
+}
+
+function Empty({ icon, title, sub, action }) {
+  return (
+    <div style={{ textAlign:"center", padding:"40px 20px", background:C.surface,
+      border:`1px solid ${C.border}`, borderRadius:12 }}>
+      <div style={{ fontSize:36, marginBottom:10 }}>{icon}</div>
+      <p style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:C.text }}>{title}</p>
+      {sub  && <p style={{ margin:"0 0 16px", fontSize:13, color:C.textMuted, lineHeight:1.6 }}>{sub}</p>}
+      {action && <div>{action}</div>}
+    </div>
+  );
+}
+
+function Row({ children, style={} }) {
+  return <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap", ...style }}>{children}</div>;
+}
+
+function Divider({ margin = "20px 0" }) {
+  return <div style={{ height:1, background:C.border, margin }} />;
+}
+
+/* ─────────────────────────────────────────────
+   SECTION HEADER
+───────────────────────────────────────────── */
+function SectionHead({ title, sub, action }) {
+  return (
+    <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between",
+      gap:12, marginBottom:20, flexWrap:"wrap" }}>
       <div>
-        <h2
-          style={{
-            fontFamily: "'Fraunces', serif",
-            fontSize: 24,
-            margin: 0,
-            color: "#111",
-            lineHeight: 1.1,
-          }}
-        >
-          {title}
-        </h2>
-        {subtitle ? (
-          <p style={{ fontSize: 13, color: "#555", margin: "6px 0 0", lineHeight: 1.65 }}>
-            {subtitle}
-          </p>
-        ) : null}
+        <h2 style={{ margin:0, fontSize:20, fontWeight:900, color:C.text,
+          fontFamily:"'Fraunces',serif", lineHeight:1.1 }}>{title}</h2>
+        {sub && <p style={{ margin:"5px 0 0", fontSize:13, color:C.textMuted, lineHeight:1.6 }}>{sub}</p>}
       </div>
-      {action || null}
+      {action}
     </div>
   );
 }
 
-function EmptyState({ icon, text, action, dark = false }) {
+/* ─────────────────────────────────────────────
+   OVERVIEW TAB
+───────────────────────────────────────────── */
+function OverviewTab({ user, metrics, onTab, lastPayment, lastKey, affiliate }) {
+  const credits = Number(user?.credits ?? 0);
   return (
-    <div
-      style={{
-        textAlign: "center",
-        padding: "34px 18px",
-        background: dark ? "rgba(255,255,255,0.03)" : "#fff",
-        border: `1px solid ${dark ? FF.borderDark : FF.borderLight}`,
-        borderRadius: 18,
-      }}
-    >
-      <div style={{ fontSize: 38, marginBottom: 10 }}>{icon}</div>
-      <p style={{ fontSize: 13, color: dark ? FF.mutedDark : FF.mutedLight, margin: 0, lineHeight: 1.6 }}>
-        {text}
-      </p>
-      {action ? <div style={{ marginTop: 16 }}>{action}</div> : null}
-    </div>
-  );
-}
-
-function Stat({ label, value, hint, color = FF.orange }) {
-  return (
-    <Card dark={false} accent={color} style={{ minHeight: 112 }}>
-      <p style={{ margin: 0, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "#888" }}>
-        {label}
-      </p>
-      <p style={{ margin: "8px 0 4px", fontSize: 28, fontWeight: 900, color: "#111", lineHeight: 1 }}>
-        {value}
-      </p>
-      {hint ? <p style={{ margin: 0, fontSize: 11, color: "#666", lineHeight: 1.6 }}>{hint}</p> : null}
-    </Card>
-  );
-}
-
-function normalizeAffiliateError(err) {
-  if (!err) return "Unknown affiliate error.";
-  return err.message || "Unknown affiliate error.";
-}
-
-function OverviewTab({ user, metrics, onSwitchTab, lastPayment, lastKey, affiliate }) {
-  const balance = Number(user?.credits ?? 0);
-  const hasAffiliate = Boolean(affiliate?.code);
-
-  return (
-    <div style={{ animation: "ffFadeIn 0.25s ease" }}>
-      <SectionTitle
-        title="Dashboard overview"
-        subtitle="Everything you need is one click away. No centered card layout, no wasted whitespace."
-      />
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.35fr 0.95fr",
-          gap: 14,
-          marginBottom: 14,
-        }}
-      >
-        <Card accent={FF.orange} style={{ background: "linear-gradient(135deg, #171720 0%, #101019 100%)" }}>
-          <Pill bg="rgba(255,75,0,0.16)" color="#ffb78a">
-            Welcome back
-          </Pill>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
-            <div>
-              <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 30, margin: "0 0 6px", color: "#fff", lineHeight: 1.05 }}>
-                {user?.name || "User"}
-              </h3>
-              <p style={{ margin: 0, color: FF.mutedDark, lineHeight: 1.6, fontSize: 13 }}>
-                {user?.email || "No email loaded"}
-              </p>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-                <Badge label={user?.role || "USER"} color="#ffb78a" dark />
-                <Badge label={`${balance} credits`} color={FF.green} dark />
-                <Badge label={hasAffiliate ? "affiliate active" : "affiliate off"} color={hasAffiliate ? FF.green : FF.mutedDark} dark />
-              </div>
-            </div>
-
-            <div
-              style={{
-                width: 82,
-                height: 82,
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(255,75,0,.34), transparent 68%)",
-                border: `2px solid ${FF.orange}44`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 34,
-                flexShrink: 0,
-              }}
-            >
-              🦊
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-              marginTop: 18,
-              paddingTop: 18,
-              borderTop: "1px solid rgba(255,255,255,.08)",
-            }}
-          >
-            <ActionBtn onClick={() => onSwitchTab("credits")} variant="primary">
-              Buy credits
-            </ActionBtn>
-            <ActionBtn onClick={() => onSwitchTab("keys")} variant="ghost">
-              Generate key
-            </ActionBtn>
-            <ActionBtn onClick={() => onSwitchTab("payments")} variant="ghost">
-              View payments
-            </ActionBtn>
-          </div>
-        </Card>
-
-        <Card dark={false}>
-          <Pill bg="rgba(255,75,0,0.1)" color={FF.orange}>
-            Quick actions
-          </Pill>
-          <div style={{ display: "grid", gap: 10 }}>
-            <button
-              onClick={() => onSwitchTab("keys")}
-              style={{
-                border: "1px solid #ececf2",
-                background: "#fff",
-                borderRadius: 16,
-                padding: "13px 14px",
-                textAlign: "left",
-                cursor: "pointer",
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>Generate an interview key</div>
-              <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>Use 1 credit and open a session instantly.</div>
-            </button>
-
-            <button
-              onClick={() => onSwitchTab("affiliate")}
-              style={{
-                border: "1px solid #ececf2",
-                background: "#fff",
-                borderRadius: 16,
-                padding: "13px 14px",
-                textAlign: "left",
-                cursor: "pointer",
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>Affiliate program</div>
-              <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>Track referral earnings and payout status.</div>
-            </button>
-
-            <button
-              onClick={() => onSwitchTab("payments")}
-              style={{
-                border: "1px solid #ececf2",
-                background: "#fff",
-                borderRadius: 16,
-                padding: "13px 14px",
-                textAlign: "left",
-                cursor: "pointer",
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>Payment history</div>
-              <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>See your last purchases and added credits.</div>
-            </button>
-          </div>
-        </Card>
+    <div>
+      {/* Welcome strip */}
+      <div style={{ background:`linear-gradient(120deg,${C.orange},#ff7a24)`,
+        borderRadius:14, padding:"24px 28px", marginBottom:20, color:"#fff",
+        position:"relative", overflow:"hidden" }}>
+        <div style={{ position:"absolute", right:-40, top:-40, width:160, height:160,
+          borderRadius:"50%", background:"rgba(255,255,255,.07)", pointerEvents:"none" }} />
+        <p style={{ margin:"0 0 4px", fontSize:11, fontWeight:700, letterSpacing:".14em",
+          textTransform:"uppercase", opacity:.75 }}>Welcome back</p>
+        <h2 style={{ margin:"0 0 4px", fontSize:28, fontWeight:900,
+          fontFamily:"'Fraunces',serif", lineHeight:1.05 }}>{user?.name || "User"}</h2>
+        <p style={{ margin:"0 0 16px", fontSize:13, opacity:.8 }}>{user?.email}</p>
+        <Row>
+          <Tag color="#fff" bg="rgba(255,255,255,.18)">{credits} credits</Tag>
+          <Tag color="#fff" bg="rgba(255,255,255,.18)">{user?.role || "USER"}</Tag>
+          {affiliate?.code && <Tag color="#fff" bg="rgba(255,255,255,.18)">Affiliate active</Tag>}
+        </Row>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: 12,
-          marginBottom: 14,
-        }}
-      >
-        <Stat
-          label="Credits"
-          value={metrics.credits}
-          hint="1 credit = 1 session"
-          color={FF.orange}
-        />
-        <Stat
-          label="Keys"
-          value={metrics.activeKeys}
-          hint="Currently usable keys"
-          color={FF.green}
-        />
-        <Stat
-          label="Payments"
-          value={metrics.payments}
-          hint="Successful purchases"
-          color={FF.blue}
-        />
-        <Stat
-          label="Affiliate earnings"
-          value={money(metrics.affiliateEarned)}
-          hint={affiliate?.code ? `${affiliate.commission_percent || 0}% commission` : "Join affiliate to earn"}
-          color={FF.yellow}
-        />
+      {/* Stats row */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
+        <StatBox label="Credits" value={metrics.credits} sub="1 credit = 1 session" color={C.orange} />
+        <StatBox label="Active keys" value={metrics.activeKeys} sub="Ready to use" color={C.green} />
+        <StatBox label="Payments" value={metrics.payments} sub="Successful" color={C.blue} />
+        <StatBox label="Affiliate earned" value={money(metrics.affiliateEarned)} sub={affiliate?.code ? `${affiliate.commission_percent||0}% commission` : "Join to earn"} color={C.yellow} />
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.2fr .8fr",
-          gap: 14,
-          marginBottom: 14,
-        }}
-      >
-        <Card dark={false} accent={FF.blue}>
-          <SectionTitle
-            title="Latest payment"
-            subtitle="Your newest successful transaction."
-            action={
-              <ActionBtn onClick={() => onSwitchTab("payments")} variant="ghost" small>
-                Open payments
-              </ActionBtn>
-            }
-          />
+      {/* Quick nav */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
+        {/* Latest payment */}
+        <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, padding:20 }}>
+          <Row style={{ marginBottom:14, justifyContent:"space-between" }}>
+            <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.text }}>Latest payment</p>
+            <Btn onClick={() => onTab("payments")} variant="ghost" size="sm">View all</Btn>
+          </Row>
           {lastPayment ? (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 16,
-                flexWrap: "wrap",
-                background: "#fff",
-                border: "1px solid #ececf2",
-                borderRadius: 16,
-                padding: "14px 16px",
-              }}
-            >
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>{lastPayment.plan_name || "Plan"}</div>
-                <div style={{ fontSize: 11, color: "#666", marginTop: 4 }}>{formatDate(lastPayment.created_at)}</div>
+                <p style={{ margin:"0 0 3px", fontSize:13, fontWeight:700, color:C.text }}>{lastPayment.plan_name || "Plan"}</p>
+                <p style={{ margin:0, fontSize:12, color:C.textMuted }}>{formatDate(lastPayment.created_at)}</p>
               </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 15, fontWeight: 900, color: "#111" }}>{money(lastPayment.amount_inr)}</div>
-                <div style={{ fontSize: 11, color: FF.green, marginTop: 4 }}>+{lastPayment.credits_added || 0} credits</div>
+              <div style={{ textAlign:"right" }}>
+                <p style={{ margin:"0 0 3px", fontSize:15, fontWeight:900, color:C.text }}>{money(lastPayment.amount_inr)}</p>
+                <Tag color={C.green}>+{lastPayment.credits_added||0} credits</Tag>
               </div>
             </div>
           ) : (
-            <EmptyState
-              icon="💳"
-              dark={false}
-              text="No successful payments yet. Buy a plan to add credits."
-              action={<ActionBtn onClick={() => onSwitchTab("credits")}>Buy credits</ActionBtn>}
-            />
+            <div style={{ textAlign:"center", padding:"16px 0" }}>
+              <p style={{ margin:"0 0 10px", fontSize:13, color:C.textMuted }}>No payments yet.</p>
+              <Btn onClick={() => onTab("credits")} size="sm">Buy credits</Btn>
+            </div>
           )}
-        </Card>
+        </div>
 
-        <Card dark={false} accent={FF.orange}>
-          <SectionTitle
-            title="Latest key"
-            subtitle="Generate a session key from the Keys tab."
-            action={<ActionBtn onClick={() => onSwitchTab("keys")} variant="ghost" small>Open keys</ActionBtn>}
-          />
+        {/* Latest key */}
+        <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, padding:20 }}>
+          <Row style={{ marginBottom:14, justifyContent:"space-between" }}>
+            <p style={{ margin:0, fontSize:13, fontWeight:700, color:C.text }}>Latest key</p>
+            <Btn onClick={() => onTab("keys")} variant="ghost" size="sm">View all</Btn>
+          </Row>
           {lastKey ? (
-            <div
-              style={{
-                border: "1px solid #ececf2",
-                borderRadius: 16,
-                background: "#fff",
-                padding: "14px 16px",
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 900, color: isActiveKey(lastKey) ? FF.green : FF.mutedLight, letterSpacing: "0.08em" }}>
-                {isActiveKey(lastKey) ? "ACTIVE" : "INACTIVE"}
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 900, color: "#111", marginTop: 8, letterSpacing: "0.08em", wordBreak: "break-all" }}>
-                {lastKey.key}
-              </div>
-              <div style={{ fontSize: 11, color: "#666", marginTop: 8 }}>
-                Expires: {formatDate(lastKey.expires_at)} · {timeLeft(lastKey.expires_at)}
-              </div>
+            <div>
+              <Tag color={isActiveKey(lastKey) ? C.green : C.textFaint} style={{ marginBottom:8 }}>
+                {isActiveKey(lastKey) ? "Active" : "Inactive"}
+              </Tag>
+              <p style={{ margin:"8px 0 4px", fontSize:13, fontWeight:700, color:C.text,
+                letterSpacing:".06em", fontFamily:"monospace", wordBreak:"break-all" }}>{lastKey.key}</p>
+              <p style={{ margin:0, fontSize:12, color:C.textMuted }}>
+                Expires {formatDate(lastKey.expires_at)}
+                {isActiveKey(lastKey) && ` · ${timeLeft(lastKey.expires_at)}`}
+              </p>
             </div>
           ) : (
-            <EmptyState
-              icon="🗝️"
-              dark={false}
-              text="No keys yet. Generate one when you are ready to start a live session."
-              action={<ActionBtn onClick={() => onSwitchTab("keys")}>Generate key</ActionBtn>}
-            />
+            <div style={{ textAlign:"center", padding:"16px 0" }}>
+              <p style={{ margin:"0 0 10px", fontSize:13, color:C.textMuted }}>No keys generated yet.</p>
+              <Btn onClick={() => onTab("keys")} size="sm">Generate key</Btn>
+            </div>
           )}
-        </Card>
+        </div>
+      </div>
+
+      {/* Quick actions */}
+      <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, padding:20 }}>
+        <p style={{ margin:"0 0 14px", fontSize:13, fontWeight:700, color:C.text }}>Quick actions</p>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
+          {[
+            { label:"Buy credits",      sub:"Add sessions to your account",  tab:"credits",   icon:"◎" },
+            { label:"Generate key",     sub:"Start a live interview session", tab:"keys",      icon:"⌥" },
+            { label:"Affiliate program",sub:"Earn from referrals",            tab:"affiliate", icon:"⟐" },
+          ].map(a => (
+            <button key={a.tab} onClick={() => onTab(a.tab)}
+              style={{ border:`1px solid ${C.border}`, background:C.bg, borderRadius:10,
+                padding:"14px 16px", textAlign:"left", cursor:"pointer",
+                transition:"border-color .15s, background .15s" }}
+              onMouseEnter={e=>{ e.currentTarget.style.borderColor=C.orange; e.currentTarget.style.background="#fff"; }}
+              onMouseLeave={e=>{ e.currentTarget.style.borderColor=C.border; e.currentTarget.style.background=C.bg; }}>
+              <p style={{ margin:"0 0 4px", fontSize:16 }}>{a.icon}</p>
+              <p style={{ margin:"0 0 3px", fontSize:13, fontWeight:700, color:C.text }}>{a.label}</p>
+              <p style={{ margin:0, fontSize:12, color:C.textMuted }}>{a.sub}</p>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-// Replace the entire CreditsTab function in UserDashboard.jsx with this
-
-function CreditsTab({ user, onRefresh, onSwitchTab }) {
-  const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
+/* ─────────────────────────────────────────────
+   CREDITS TAB
+───────────────────────────────────────────── */
+function CreditsTab({ user, onRefresh, onTab }) {
+  const [plans, setPlans]   = useState([]);
+  const [loading, setLoad]  = useState(true);
   const [buying, setBuying] = useState(null);
-  const [msg, setMsg] = useState(null);
+  const [msg, setMsg]       = useState(null);
 
   useEffect(() => {
-    let mounted = true;
-    async function load() {
+    let live = true;
+    (async () => {
       try {
-        setLoading(true);
         const data = await fetchActivePlans();
-        const list = normalizeList(data).map(normalizePlan).filter((p) => p.active !== false);
-        if (mounted) setPlans(list.length ? list : FALLBACK_PLANS);
-      } catch (err) {
-        console.error(err);
-        if (mounted) {
-          setPlans(FALLBACK_PLANS);
-          setMsg({ type: "info", text: "Using fallback plans — plans API was unavailable." });
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-    load();
-    return () => { mounted = false; };
+        const list = normalizeList(data).map(normalizePlan).filter(p => p.active !== false);
+        if (live) setPlans(list.length ? list : FALLBACK_PLANS);
+      } catch { if (live) setPlans(FALLBACK_PLANS); }
+      finally   { if (live) setLoad(false); }
+    })();
+    return () => { live = false; };
   }, []);
 
   async function buyPlan(plan) {
-    setBuying(plan.id);
-    setMsg(null);
-
-    // ── TEST MODE: instant credits, no Razorpay ──
-    const isTestMode = false; // ← set to false once Razorpay keys are live
-
-    if (isTestMode) {
+    setBuying(plan.id); setMsg(null);
+    const isTest = false;
+    if (isTest) {
       try {
-        const result = await testAddCredits(plan.id);
-        const added = result?.credits_added ?? plan.credits ?? "—";
-        const bal   = result?.credits_balance ?? "—";
-        setMsg({ type: "success", text: `${added} credits added. New balance: ${bal}.` });
+        const r = await testAddCredits(plan.id);
+        setMsg({ type:"success", text:`${r?.credits_added ?? plan.credits} credits added. Balance: ${r?.credits_balance ?? "—"}.` });
         onRefresh?.();
-      } catch (err) {
-        setMsg({ type: "error", text: err.message || "Failed to add credits." });
-      } finally {
-        setBuying(null);
-      }
+      } catch(e) { setMsg({ type:"error", text:e.message||"Failed." }); }
+      finally    { setBuying(null); }
       return;
     }
-
-    // ── LIVE MODE: Razorpay checkout ──
-    // Make sure Razorpay script is loaded in index.html:
-    // <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     try {
-      // Step 1: create order on backend
       const order = await createPaymentOrder(plan.id);
-
-      // 100% coupon — already credited, no popup needed
       if (order.free_order) {
-        setMsg({ type: "success", text: `Free plan applied! ${order.credits_added} credits added.` });
-        onRefresh?.();
-        setBuying(null);
-        return;
+        setMsg({ type:"success", text:`Free plan applied! ${order.credits_added} credits added.` });
+        onRefresh?.(); setBuying(null); return;
       }
-
-      // Step 2: open Razorpay checkout
-      await new Promise((resolve, reject) => {
+      await new Promise((res, rej) => {
         const rzp = new window.Razorpay({
-          key:         order.key_id,
-          amount:      order.amount,
-          currency:    order.currency || "INR",
-          order_id:    order.order_id,
-          name:        "FluentFox",
-          description: `${plan.name} — ${plan.credits} credit${plan.credits > 1 ? "s" : ""}`,
-          handler: async (response) => {
+          key:order.key_id, amount:order.amount, currency:order.currency||"INR",
+          order_id:order.order_id, name:"FluentFox",
+          description:`${plan.name} — ${plan.credits} session${plan.credits>1?"s":""}`,
+          handler: async (rsp) => {
             try {
-              // Step 3: verify with backend
-              let result = await verifyPayment(
-                response.razorpay_order_id,
-                response.razorpay_payment_id,
-                response.razorpay_signature,
-              );
-
-              // If webhook is mid-processing, retry once after 2.5s
+              let result = await verifyPayment(rsp.razorpay_order_id, rsp.razorpay_payment_id, rsp.razorpay_signature);
               if (result?.retry) {
-                await new Promise(r => setTimeout(r, 2500));
-                result = await verifyPayment(
-                  response.razorpay_order_id,
-                  response.razorpay_payment_id,
-                  response.razorpay_signature,
-                );
+                await new Promise(r=>setTimeout(r,2500));
+                result = await verifyPayment(rsp.razorpay_order_id, rsp.razorpay_payment_id, rsp.razorpay_signature);
               }
-
-              setMsg({
-                type: "success",
-                text: `Payment successful! ${result.credits_added} credits added. Balance: ${result.credits_balance}.`,
-              });
-              onRefresh?.();
-              resolve();
-            } catch (err) {
-              setMsg({ type: "error", text: err.message || "Payment verification failed. Contact support." });
-              reject(err);
-            }
+              setMsg({ type:"success", text:`Payment done! ${result.credits_added} credits added. Balance: ${result.credits_balance}.` });
+              onRefresh?.(); res();
+            } catch(e) { setMsg({ type:"error", text:e.message||"Verification failed. Contact support." }); rej(e); }
           },
-          modal: {
-            ondismiss: () => {
-              setMsg({ type: "info", text: "Payment cancelled." });
-              resolve();
-            },
-          },
-          prefill: {
-            email: user?.email || "",
-            name:  user?.name  || "",
-          },
-          theme: { color: "#ff4b00" },
+          modal:{ ondismiss:() => { setMsg({ type:"info", text:"Payment cancelled." }); res(); }},
+          prefill:{ email:user?.email||"", name:user?.name||"" },
+          theme:{ color:"#ff4b00" },
         });
         rzp.open();
       });
-    } catch (err) {
-      setMsg({ type: "error", text: err.message || "Failed to initiate payment." });
-    } finally {
-      setBuying(null);
-    }
+    } catch(e) { setMsg({ type:"error", text:e.message||"Failed to initiate payment." }); }
+    finally    { setBuying(null); }
   }
 
-  const sortedPlans = [...plans].sort((a, b) => {
+  const sorted = [...plans].sort((a,b) => {
     if (a.popular && !b.popular) return -1;
-    if (!a.popular && b.popular) return 1;
-    return Number(a.price_inr || 0) - Number(b.price_inr || 0);
+    if (!a.popular && b.popular) return  1;
+    return Number(a.price_inr||0) - Number(b.price_inr||0);
   });
 
   return (
-    <div style={{ animation: "ffFadeIn 0.25s ease" }}>
-      <SectionTitle
-        title="Credits & Plans"
-        subtitle="Add credits to your account. 1 credit = 1 live interview session."
-        action={
-          <ActionBtn onClick={() => onSwitchTab("keys")} variant="ghost" small>
-            Go to keys
-          </ActionBtn>
-        }
-      />
+    <div>
+      <SectionHead title="Credits & Plans" sub="Buy session credits. 1 credit = 1 live interview session."
+        action={<Btn onClick={()=>onTab("keys")} variant="ghost" size="sm">My keys →</Btn>} />
 
-      {msg ? <Alert type={msg.type}>{msg.text}</Alert> : null}
-
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 14, marginBottom: 14 }}>
-        <Card accent={FF.orange} style={{ background: "linear-gradient(135deg, #171720 0%, #101019 100%)" }}>
-          <Pill bg="rgba(255,75,0,0.16)" color="#ffb78a">Credit balance</Pill>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                <p style={{ fontSize: 54, fontWeight: 900, color: FF.orange, margin: "0 0 2px", lineHeight: 1 }}>
-                  {user?.credits ?? 0}
-                </p>
-                <span style={{ fontSize: 16, color: FF.mutedDark, fontWeight: 700 }}>credits</span>
-              </div>
-              <p style={{ fontSize: 12, color: FF.mutedDark, margin: "6px 0 0", lineHeight: 1.6 }}>
-                1 credit = 1 live interview session
-              </p>
-            </div>
-            <div style={{
-              width: 80, height: 80, borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(255,75,0,.34), transparent 68%)",
-              border: `2px solid ${FF.orange}44`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 32, flexShrink: 0,
-            }}>🎯</div>
-          </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18, paddingTop: 18, borderTop: "1px solid rgba(255,255,255,.08)" }}>
-            <ActionBtn onClick={() => onSwitchTab("keys")} variant="primary">Generate key</ActionBtn>
-            <ActionBtn onClick={() => onSwitchTab("payments")} variant="ghost">Payment history</ActionBtn>
-          </div>
-        </Card>
-
-        <Card dark={false}>
-          <Pill bg="rgba(255,75,0,0.1)" color={FF.orange}>Quick guide</Pill>
-          <div style={{ display: "grid", gap: 10 }}>
-            {[
-              "Buy a plan below to add credits to your account.",
-              "Generate an interview key when you're ready to start a session.",
-              "Keys expire after 6 hours if unused — credit is refunded.",
-              "Sessions under 10 minutes are automatically refunded.",
-            ].map((line) => (
-              <div key={line} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "#444", lineHeight: 1.6 }}>
-                <span style={{ color: FF.green, marginTop: 2 }}>●</span>
-                <span>{line}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+      {/* Balance card */}
+      <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12,
+        padding:24, marginBottom:20, display:"flex", alignItems:"center",
+        justifyContent:"space-between", gap:20, flexWrap:"wrap" }}>
+        <div>
+          <p style={{ margin:"0 0 4px", fontSize:11, fontWeight:700, letterSpacing:".1em",
+            textTransform:"uppercase", color:C.textFaint }}>Your balance</p>
+          <p style={{ margin:0, fontSize:48, fontWeight:900, color:C.orange, lineHeight:1 }}>
+            {user?.credits ?? 0}
+            <span style={{ fontSize:16, fontWeight:600, color:C.textMuted, marginLeft:8 }}>credits</span>
+          </p>
+        </div>
+        <Btn onClick={() => onTab("keys")} size="sm">Generate session key</Btn>
       </div>
 
-      <SectionTitle title="Choose a plan" subtitle="Credits are added to your account immediately after payment." />
+      {msg && <Notice type={msg.type} onClose={()=>setMsg(null)}>{msg.text}</Notice>}
+
+      <p style={{ margin:"0 0 14px", fontSize:14, fontWeight:700, color:C.text }}>Choose a plan</p>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 40 }}><Spinner /></div>
+        <div style={{ textAlign:"center", padding:40 }}><Spinner size={28} /></div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14 }}>
-          {sortedPlans.map((plan, index) => {
-            const popular = plan.popular || index === 1;
-            const perSession = plan.credits > 1
-              ? `₹${Math.round(Number(plan.price_inr) / plan.credits)}/session`
-              : null;
-
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14 }}>
+          {sorted.map((plan, i) => {
+            const pop = plan.popular;
+            const per = plan.credits > 1 ? Math.round(Number(plan.price_inr)/plan.credits) : null;
             return (
               <div key={plan.id} style={{
-                background: popular
-                  ? "linear-gradient(180deg, #1d1622 0%, #111118 100%)"
-                  : "#fff",
-                color: popular ? FF.textDark : FF.textLight,
-                border: `1px solid ${popular ? "rgba(255,75,0,.25)" : FF.borderLight}`,
-                borderRadius: 20,
-                padding: "20px",
-                position: "relative",
-                boxShadow: popular ? "0 18px 36px rgba(255,75,0,.08)" : "0 12px 28px rgba(0,0,0,.05)",
-                display: "flex",
-                flexDirection: "column",
+                background: pop ? C.text : C.surface,
+                border: pop ? `2px solid ${C.text}` : `1px solid ${C.border}`,
+                borderRadius:14, padding:24, position:"relative",
+                display:"flex", flexDirection:"column",
+                boxShadow: pop ? "0 20px 40px rgba(0,0,0,.14)" : "none",
               }}>
-                {popular ? (
-                  <div style={{
-                    position: "absolute", top: -10, left: "50%",
-                    transform: "translateX(-50%)",
-                    background: FF.orange, color: "#fff",
-                    fontSize: 9, fontWeight: 900, letterSpacing: "0.16em",
-                    textTransform: "uppercase", padding: "4px 12px", borderRadius: 999,
-                  }}>Most popular</div>
-                ) : null}
-
-                <Badge label={plan.name} color={popular ? "#ffb78a" : FF.orange} dark={popular} />
-
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6, margin: "8px 0 4px" }}>
-                  <p style={{
-                    fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 900,
-                    margin: 0, color: popular ? "#fff" : "#111",
-                  }}>
-                    ₹{Number(plan.price_inr).toLocaleString("en-IN")}
-                  </p>
-                </div>
-
-                {perSession && (
-                  <p style={{ fontSize: 11, fontWeight: 700, color: popular ? "#ffb78a" : FF.orange, margin: "0 0 8px" }}>
-                    {perSession}
-                  </p>
+                {pop && (
+                  <div style={{ position:"absolute", top:-10, left:"50%", transform:"translateX(-50%)",
+                    background:C.orange, color:"#fff", fontSize:9, fontWeight:800,
+                    letterSpacing:".12em", textTransform:"uppercase",
+                    padding:"4px 12px", borderRadius:999, whiteSpace:"nowrap" }}>
+                    Most popular
+                  </div>
                 )}
 
-                <p style={{ fontSize: 13, color: popular ? FF.mutedDark : "#555", lineHeight: 1.65, margin: "0 0 16px" }}>
-                  {plan.description}
-                </p>
+                <p style={{ margin:"0 0 4px", fontSize:11, fontWeight:800, letterSpacing:".12em",
+                  textTransform:"uppercase", color: pop?"rgba(255,255,255,.5)":C.textFaint }}>{plan.name}</p>
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-                  {[`${plan.credits} session${plan.credits > 1 ? "s" : ""}`, "Instant access", "Private audio"].map((f) => (
-                    <span key={f} style={{
-                      background: popular ? "rgba(255,255,255,.06)" : "#f6f6f7",
-                      border: `1px solid ${popular ? "rgba(255,255,255,.08)" : "#ececf2"}`,
-                      color: popular ? "#dcdce8" : "#444",
-                      padding: "7px 11px", borderRadius: 999,
-                      fontSize: 11, fontWeight: 700,
-                    }}>{f}</span>
+                <div style={{ display:"flex", alignItems:"baseline", gap:4, margin:"8px 0 4px" }}>
+                  <span style={{ fontFamily:"'Fraunces',serif", fontSize:40, fontWeight:900, lineHeight:1,
+                    color: pop?"#fff":C.text }}>₹{Number(plan.price_inr).toLocaleString("en-IN")}</span>
+                </div>
+
+                {per && <p style={{ margin:"0 0 10px", fontSize:11, fontWeight:700,
+                  color: pop?"rgba(255,255,255,.55)":C.textMuted }}>₹{per} per session</p>}
+
+                <p style={{ margin:"0 0 16px", fontSize:13, lineHeight:1.65, flex:1,
+                  color: pop?"rgba(255,255,255,.72)":C.textMuted }}>{plan.description}</p>
+
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:18 }}>
+                  {[`${plan.credits} session${plan.credits>1?"s":""}`, "Instant access", "Private audio"].map(f => (
+                    <span key={f} style={{ fontSize:11, fontWeight:600,
+                      color: pop?"rgba(255,255,255,.6)":C.textMuted,
+                      background: pop?"rgba(255,255,255,.08)":"#f3f4f6",
+                      border: pop?"1px solid rgba(255,255,255,.1)":"1px solid #e5e7eb",
+                      padding:"5px 10px", borderRadius:6 }}>{f}</span>
                   ))}
                 </div>
 
-                <ActionBtn
-                  onClick={() => buyPlan(plan)}
-                  variant={popular ? "primary" : "ghost"}
-                  loading={buying === plan.id}
-                  fullWidth
-                >
-                  {buying === plan.id ? "Processing…" : "Buy now"}
-                </ActionBtn>
+                <Btn onClick={() => buyPlan(plan)} variant={pop ? "primary" : "ghost"}
+                  loading={buying===plan.id} fullWidth>
+                  {buying===plan.id ? "Processing…" : "Buy now"}
+                </Btn>
               </div>
             );
           })}
         </div>
       )}
 
-      <div style={{ marginTop: 16 }}>
-        <Alert type="info">
-          💳 Payments are processed securely via Razorpay. Credits appear in your account immediately after payment confirmation.
-        </Alert>
-      </div>
+      <p style={{ margin:"16px 0 0", fontSize:12, color:C.textFaint, textAlign:"center" }}>
+        Payments via Razorpay · Credits added instantly · No subscriptions
+      </p>
     </div>
   );
 }
 
-function KeysTab({ user, onRefresh, onSwitchTab }) {
-  const [keys, setKeys] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [newKey, setNewKey] = useState(null);
-  const [copied, setCopied] = useState(false);
-  const [msg, setMsg] = useState(null);
-  const [sessionKey, setSessionKey] = useState("");
-  const [startingSession, setStartingSession] = useState(false);
-  const [stoppingSession, setStoppingSession] = useState(false);
-  const [sessionNote, setSessionNote] = useState(null);
+/* ─────────────────────────────────────────────
+   KEYS TAB
+───────────────────────────────────────────── */
+function KeysTab({ user, onRefresh, onTab }) {
+  const [keys, setKeys]           = useState([]);
+  const [loading, setLoad]        = useState(true);
+  const [generating, setGen]      = useState(false);
+  const [newKey, setNewKey]       = useState(null);
+  const [copied, setCopied]       = useState(null);
+  const [msg, setMsg]             = useState(null);
 
   const loadKeys = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await fetchMyKeys();
-      setKeys(normalizeList(res));
-    } catch (err) {
-      console.error(err);
-      setMsg({ type: "error", text: err.message || "Failed to load keys." });
-    } finally {
-      setLoading(false);
-    }
+    try { setLoad(true); const r = await fetchMyKeys(); setKeys(normalizeList(r)); }
+    catch(e) { setMsg({ type:"error", text:e.message||"Could not load keys." }); }
+    finally  { setLoad(false); }
   }, []);
 
-  useEffect(() => {
-    loadKeys();
-  }, [loadKeys]);
+  useEffect(() => { loadKeys(); }, [loadKeys]);
 
   async function handleGenerate() {
     if ((user?.credits ?? 0) < 1) {
-      setMsg({ type: "error", text: "You have 0 credits. Go to Credits & Plans first." });
-      return;
+      setMsg({ type:"error", text:"No credits left. Buy a plan first." }); return;
     }
-
-    setGenerating(true);
-    setMsg(null);
-    setNewKey(null);
-
+    setGen(true); setMsg(null); setNewKey(null);
     try {
-      const result = await generateUserKey();
-      setNewKey(result);
-      if (!result?.reused) onRefresh?.();
+      const r = await generateUserKey();
+      setNewKey(r); if (!r?.reused) onRefresh?.();
       await loadKeys();
-    } catch (err) {
-      if (err.code === "NO_CREDITS" || err.status === 403) {
-        setMsg({ type: "error", text: "No credits available. Please buy a plan first." });
-      } else {
-        setMsg({ type: "error", text: err.message || "Failed to generate key." });
-      }
-    } finally {
-      setGenerating(false);
-    }
+    } catch(e) {
+      setMsg({ type:"error", text:e.message||"Failed to generate key." });
+    } finally { setGen(false); }
   }
 
-  async function copyKey(k) {
+  async function copy(k, id) {
     await navigator.clipboard.writeText(k);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
-  }
-
-  async function handleStartSession() {
-    if (!sessionKey.trim()) {
-      setSessionNote({ type: "error", text: "Paste a key first." });
-      return;
-    }
-    setStartingSession(true);
-    setSessionNote(null);
-    try {
-      const result = await startSession(sessionKey.trim());
-      setSessionNote({
-        type: "success",
-        text: result?.reused ? "Session resumed using an existing key." : "Session started successfully.",
-      });
-      await loadKeys();
-      onRefresh?.();
-    } catch (err) {
-      setSessionNote({ type: "error", text: err.message || "Failed to start session." });
-    } finally {
-      setStartingSession(false);
-    }
-  }
-
-  async function handleStopSession() {
-    setStoppingSession(true);
-    setSessionNote(null);
-    try {
-      const result = await stopSession();
-      setSessionNote({
-        type: "success",
-        text: result?.message || "Session stopped.",
-      });
-      await loadKeys();
-      onRefresh?.();
-    } catch (err) {
-      setSessionNote({ type: "error", text: err.message || "Failed to stop session." });
-    } finally {
-      setStoppingSession(false);
-    }
+    setCopied(id); setTimeout(() => setCopied(null), 1600);
   }
 
   const activeKeys = useMemo(() => keys.filter(isActiveKey), [keys]);
 
   return (
-    <div style={{ animation: "ffFadeIn 0.25s ease" }}>
-      <SectionTitle
-        title="Interview Keys"
-        subtitle="Generate a key, start a session, or stop the current session from one place."
-        action={
-          <ActionBtn onClick={() => onSwitchTab("credits")} variant="ghost" small>
-            Buy credits
-          </ActionBtn>
-        }
-      />
+    <div>
+      <SectionHead title="Interview Keys"
+        sub="Generate a key to start a live interview session. Each key uses 1 credit."
+        action={<Btn onClick={()=>onTab("credits")} variant="ghost" size="sm">Buy credits</Btn>} />
 
-      {msg ? <Alert type={msg.type}>{msg.text}</Alert> : null}
+      {msg && <Notice type={msg.type} onClose={()=>setMsg(null)}>{msg.text}</Notice>}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 0.9fr",
-          gap: 14,
-          marginBottom: 14,
-        }}
-      >
-        <Card accent={FF.orange} style={{ background: "linear-gradient(135deg, #16161f 0%, #111118 100%)" }}>
-          <Pill bg="rgba(255,75,0,0.16)" color="#ffb78a">
-            Key generator
-          </Pill>
-          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 26, margin: "0 0 8px", color: "#fff" }}>
-            Create a session key
-          </h3>
-          <p style={{ fontSize: 13, color: FF.mutedDark, margin: 0, lineHeight: 1.7 }}>
-            Costs 1 credit. Keys expire in 6 hours if unused. Copy the key and paste it into your interview flow.
-          </p>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
-            <ActionBtn onClick={handleGenerate} loading={generating} variant="primary">
-              Generate key
-            </ActionBtn>
-            <ActionBtn onClick={() => onSwitchTab("credits")} variant="ghost">
-              Buy credits
-            </ActionBtn>
-            <ActionBtn onClick={handleStopSession} loading={stoppingSession} variant="danger">
-              Stop session
-            </ActionBtn>
+      {/* Generate key — full width */}
+      <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12,
+        padding:24, marginBottom:20 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+          gap:20, flexWrap:"wrap" }}>
+          <div>
+            <p style={{ margin:"0 0 4px", fontSize:14, fontWeight:700, color:C.text }}>Generate a key</p>
+            <p style={{ margin:0, fontSize:13, color:C.textMuted, lineHeight:1.6 }}>
+              Uses 1 credit · Valid for 6 hours · Auto-refunded if unused
+            </p>
           </div>
-        </Card>
-
-        <Card dark={false}>
-          <SLabel light>Session control</SLabel>
-          <div style={{ display: "grid", gap: 10 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: "#666" }}>
-                Paste key
-              </span>
-              <input
-                value={sessionKey}
-                onChange={(e) => setSessionKey(e.target.value)}
-                placeholder="FF-XXXXX-XXXXX"
-                style={{
-                  width: "100%",
-                  borderRadius: 14,
-                  border: "1px solid #e6e8ef",
-                  background: "#fff",
-                  padding: "12px 14px",
-                  fontSize: 14,
-                  outline: "none",
-                  boxShadow: "0 10px 24px rgba(0,0,0,.03)",
-                }}
-              />
-            </label>
-
-            <ActionBtn onClick={handleStartSession} loading={startingSession} variant="blue" fullWidth>
-              Start session
-            </ActionBtn>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                border: "1px solid #ececf2",
-                borderRadius: 14,
-                padding: "12px 14px",
-              }}
-            >
-              <span style={{ fontSize: 12, color: "#444", fontWeight: 700 }}>Available credits</span>
-              <Badge label={`${user?.credits ?? 0}`} color={FF.green} dark={false} />
+          <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px",
+              background:C.bg, borderRadius:8, border:`1px solid ${C.border}` }}>
+              <span style={{ fontSize:11, fontWeight:700, color:C.textFaint }}>BALANCE</span>
+              <span style={{ fontSize:14, fontWeight:900, color:C.text }}>{user?.credits ?? 0} credits</span>
             </div>
+            <Btn onClick={handleGenerate} loading={generating}>
+              Generate key — use 1 credit
+            </Btn>
           </div>
-        </Card>
+        </div>
       </div>
 
-      {sessionNote ? <Alert type={sessionNote.type}>{sessionNote.text}</Alert> : null}
-
-      {newKey ? (
-        <Card accent={FF.green} style={{ marginBottom: 14 }}>
-          <SLabel>{newKey.reused ? "Existing active key" : "New key generated"}</SLabel>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-              background: "rgba(22,199,132,0.08)",
-              border: "1px solid rgba(22,199,132,0.18)",
-              borderRadius: 14,
-              padding: "14px 16px",
-              marginBottom: 10,
-            }}
-          >
-            <code
-              style={{
-                fontSize: 14,
-                fontWeight: 800,
-                color: FF.green,
-                letterSpacing: "0.12em",
-                flex: 1,
-                wordBreak: "break-all",
-              }}
-            >
-              {newKey.key}
-            </code>
-            <ActionBtn onClick={() => copyKey(newKey.key)} variant="ghost" small>
-              {copied ? "✓ Copied" : "Copy"}
-            </ActionBtn>
-          </div>
-          <p style={{ fontSize: 11, color: FF.mutedDark, margin: 0 }}>
-            Expires: {newKey.expires_at ? new Date(newKey.expires_at).toLocaleString("en-IN") : "—"}
+      {/* New key display */}
+      {newKey && (
+        <div style={{ background:"#f0fdf4", border:"1px solid #86efac", borderRadius:12,
+          padding:20, marginBottom:20 }}>
+          <p style={{ margin:"0 0 10px", fontSize:11, fontWeight:700, letterSpacing:".1em",
+            textTransform:"uppercase", color:C.green }}>
+            {newKey.reused ? "Existing key" : "Key generated ✓"}
           </p>
-        </Card>
-      ) : null}
+          <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+            <code style={{ fontSize:15, fontWeight:800, color:C.green, letterSpacing:".1em",
+              flex:1, wordBreak:"break-all" }}>{newKey.key}</code>
+            <Btn onClick={() => copy(newKey.key, "new")} variant="ghost" size="sm">
+              {copied==="new" ? "Copied ✓" : "Copy"}
+            </Btn>
+          </div>
+          {newKey.expires_at && (
+            <p style={{ margin:"8px 0 0", fontSize:12, color:"#166534" }}>
+              Expires {new Date(newKey.expires_at).toLocaleString("en-IN")}
+            </p>
+          )}
+        </div>
+      )}
 
-      <SectionTitle
-        title="Your keys"
-        subtitle="Active keys are highlighted. Inactive keys remain in the list for history."
-      />
+      {/* Keys list */}
+      <p style={{ margin:"0 0 12px", fontSize:14, fontWeight:700, color:C.text }}>
+        All keys
+        {activeKeys.length > 0 && (
+          <Tag color={C.green} style={{ marginLeft:8 }}>{activeKeys.length} active</Tag>
+        )}
+      </p>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 40 }}>
-          <Spinner />
-        </div>
+        <div style={{ textAlign:"center", padding:32 }}><Spinner size={24} /></div>
       ) : keys.length === 0 ? (
-        <EmptyState
-          icon="🗝️"
-          text="No keys yet. Generate your first key above."
-          dark={false}
-          action={<ActionBtn onClick={handleGenerate}>Generate key</ActionBtn>}
-        />
+        <Empty icon="🗝️" title="No keys yet" sub="Generate your first key above."
+          action={<Btn onClick={handleGenerate} size="sm">Generate key</Btn>} />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {keys.map((k) => {
-            const active = isActiveKey(k);
-            const statusColor = active ? FF.green : k.refunded ? FF.yellow : FF.mutedLight;
-            const statusLabel = active
-              ? "Active"
-              : k.refunded
-              ? "Refunded"
-              : k.revoked
-              ? "Revoked"
-              : k.used
-              ? "Used"
-              : "Expired";
-
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {keys.map(k => {
+            const active   = isActiveKey(k);
+            const status   = active ? "Active" : k.refunded ? "Refunded" : k.revoked ? "Revoked" : k.used ? "Used" : "Expired";
+            const sColor   = active ? C.green : k.refunded ? C.yellow : C.textFaint;
             return (
-              <div
-                key={k.id || k.key}
-                style={{
-                  background: "#fff",
-                  border: "1px solid #ececf2",
-                  borderRadius: 16,
-                  padding: "14px 16px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  flexWrap: "wrap",
-                  boxShadow: "0 10px 22px rgba(0,0,0,.04)",
-                }}
-              >
-                <code
-                  style={{
-                    fontSize: 12,
-                    color: active ? FF.green : "#666",
-                    flex: 1,
-                    letterSpacing: "0.1em",
-                    wordBreak: "break-all",
-                  }}
-                >
-                  {k.key}
-                </code>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
-                  <Badge label={statusLabel} color={statusColor} dark={false} />
-                  {active ? <span style={{ fontSize: 10, color: "#888" }}>{timeLeft(k.expires_at)}</span> : null}
-                  <span style={{ fontSize: 10, color: "#888" }}>{formatDate(k.created_at)}</span>
+              <div key={k.id||k.key} style={{ background:C.surface, border:`1px solid ${active?C.green+"44":C.border}`,
+                borderRadius:10, padding:"14px 18px", display:"flex", alignItems:"center",
+                gap:14, flexWrap:"wrap" }}>
+                <code style={{ flex:1, fontSize:13, fontWeight:700, color:active?C.green:C.textMuted,
+                  letterSpacing:".06em", wordBreak:"break-all" }}>{k.key}</code>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                  <Tag color={sColor}>{status}</Tag>
+                  {active && <span style={{ fontSize:11, color:C.textFaint }}>{timeLeft(k.expires_at)}</span>}
+                  <span style={{ fontSize:11, color:C.textFaint }}>{formatDate(k.created_at)}</span>
                 </div>
-
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {active ? (
-                    <ActionBtn onClick={() => copyKey(k.key)} variant="ghost" small>
-                      Copy
-                    </ActionBtn>
-                  ) : null}
-                </div>
+                {active && (
+                  <Btn onClick={() => copy(k.key, k.id||k.key)} variant="ghost" size="sm">
+                    {copied===( k.id||k.key) ? "Copied ✓" : "Copy"}
+                  </Btn>
+                )}
               </div>
             );
           })}
@@ -1265,113 +626,69 @@ function KeysTab({ user, onRefresh, onSwitchTab }) {
   );
 }
 
+/* ─────────────────────────────────────────────
+   PAYMENTS TAB
+───────────────────────────────────────────── */
 function PaymentsTab() {
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [payments, setPay] = useState([]);
+  const [loading, setLoad] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
-    async function load() {
-      try {
-        setLoading(true);
-        const data = await fetchMyPaymentHistory();
-        const list = normalizeList(data);
-        if (mounted) setPayments(list);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      mounted = false;
-    };
+    let live = true;
+    (async () => {
+      try { const d = await fetchMyPaymentHistory(); if (live) setPay(normalizeList(d)); }
+      catch(e) { console.error(e); }
+      finally  { if (live) setLoad(false); }
+    })();
+    return () => { live = false; };
   }, []);
 
-  const successful = payments.filter((p) => p.status === "success");
-  const totalSpent = successful.reduce((sum, p) => sum + Number(p.amount_inr || 0), 0);
-  const totalCredits = successful.reduce((sum, p) => sum + Number(p.credits_added || 0), 0);
+  const ok     = payments.filter(p => p.status==="success");
+  const spent  = ok.reduce((s,p) => s+Number(p.amount_inr||0), 0);
+  const bought = ok.reduce((s,p) => s+Number(p.credits_added||0), 0);
 
   return (
-    <div style={{ animation: "ffFadeIn 0.25s ease" }}>
-      <SectionTitle
-        title="Payment history"
-        subtitle="Track your purchases and the credits added to your account."
-      />
+    <div>
+      <SectionHead title="Payment history" sub="All purchases and credits added to your account." />
 
-      {successful.length > 0 ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-          <Stat label="Total spent" value={money(totalSpent)} hint="Successful payments only" color={FF.green} />
-          <Stat label="Credits purchased" value={totalCredits} hint="Across successful payments" color={FF.blue} />
+      {ok.length > 0 && (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
+          <StatBox label="Total spent" value={money(spent)} sub="Successful payments only" color={C.green} />
+          <StatBox label="Credits purchased" value={bought} sub="Across all payments" color={C.blue} />
         </div>
-      ) : null}
+      )}
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 40 }}>
-          <Spinner />
-        </div>
-      ) : payments.length === 0 ? (
-        <EmptyState icon="💳" text="No payments yet. Buy a plan to get started." dark={false} />
+        <div style={{ textAlign:"center", padding:40 }}><Spinner size={24} /></div>
+      ) : payments.length===0 ? (
+        <Empty icon="💳" title="No payments yet" sub="Buy a plan to add credits to your account." />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {payments.map((p, idx) => {
-            const success = p.status === "success";
+        <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, overflow:"hidden" }}>
+          {payments.map((p,i) => {
+            const success = p.status==="success";
             return (
-              <div
-                key={p.id || idx}
-                style={{
-                  background: "#fff",
-                  border: "1px solid #ececf2",
-                  borderRadius: 16,
-                  padding: "14px 16px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  flexWrap: "wrap",
-                  boxShadow: "0 10px 22px rgba(0,0,0,.04)",
-                }}
-              >
-                <div
-                  style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 12,
-                    flexShrink: 0,
-                    background: success ? `${FF.green}18` : `${FF.yellow}18`,
-                    border: `1px solid ${success ? `${FF.green}44` : `${FF.yellow}44`}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 18,
-                  }}
-                >
+              <div key={p.id||i} style={{
+                display:"flex", alignItems:"center", gap:14, padding:"16px 20px",
+                borderBottom: i<payments.length-1 ? `1px solid ${C.border}` : "none",
+              }}>
+                <div style={{ width:38, height:38, borderRadius:10, flexShrink:0,
+                  background:success?"#f0fdf4":"#fefce8",
+                  border:`1px solid ${success?"#86efac":"#fde68a"}`,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:16, color:success?C.green:C.yellow }}>
                   {success ? "✓" : "⏳"}
                 </div>
-
-                <div style={{ flex: 1, minWidth: 120 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111" }}>
-                    {p.plan_name || "Plan"}
-                  </p>
-                  <p style={{ margin: "3px 0 0", fontSize: 11, color: "#666" }}>
-                    {formatDate(p.created_at)}
-                  </p>
+                <div style={{ flex:1 }}>
+                  <p style={{ margin:"0 0 2px", fontSize:13, fontWeight:700, color:C.text }}>{p.plan_name||"Plan"}</p>
+                  <p style={{ margin:0, fontSize:12, color:C.textMuted }}>{formatDate(p.created_at)}</p>
                 </div>
-
-                <div style={{ textAlign: "right" }}>
-                  <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#111" }}>
-                    {money(p.amount_inr)}
-                  </p>
-                  <p style={{ margin: "3px 0 0", fontSize: 11, color: FF.green }}>
-                    +{Number(p.credits_added || 0)} credits
-                  </p>
+                <div style={{ textAlign:"right" }}>
+                  <p style={{ margin:"0 0 2px", fontSize:14, fontWeight:800, color:C.text }}>{money(p.amount_inr)}</p>
+                  <p style={{ margin:0, fontSize:12, color:C.green }}>+{p.credits_added||0} credits</p>
                 </div>
-
-                <Badge
-                  label={p.status || "unknown"}
-                  color={success ? FF.green : p.status === "pending" ? FF.yellow : FF.red}
-                  dark={false}
-                />
+                <Tag color={success?C.green:p.status==="pending"?C.yellow:C.red}>
+                  {p.status||"unknown"}
+                </Tag>
               </div>
             );
           })}
@@ -1381,270 +698,133 @@ function PaymentsTab() {
   );
 }
 
+/* ─────────────────────────────────────────────
+   AFFILIATE TAB
+───────────────────────────────────────────── */
 function AffiliateTab({ onRefresh }) {
-  const [affiliate, setAffiliate] = useState(null);
-  const [referrals, setReferrals] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [aff, setAff]         = useState(null);
+  const [refs, setRefs]       = useState([]);
+  const [loading, setLoad]    = useState(true);
   const [joining, setJoining] = useState(false);
-  const [notAffiliate, setNotAffiliate] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [error, setError] = useState("");
+  const [notAff, setNotAff]   = useState(false);
+  const [copied, setCopied]   = useState(false);
+  const [err, setErr]         = useState("");
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoad(true);
     try {
-      const [aff, refs] = await Promise.all([
-        fetchMyAffiliateStats(),
-        fetchMyReferrals().catch(() => []),
-      ]);
-      setAffiliate(aff);
-      setReferrals(normalizeList(refs));
-      setNotAffiliate(false);
-    } catch {
-      setNotAffiliate(true);
-    } finally {
-      setLoading(false);
-    }
+      const [a, r] = await Promise.all([fetchMyAffiliateStats(), fetchMyReferrals().catch(()=>[])]);
+      setAff(a); setRefs(normalizeList(r)); setNotAff(false);
+    } catch { setNotAff(true); }
+    finally  { setLoad(false); }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   async function handleJoin() {
-    setJoining(true);
-    setError("");
-    try {
-      await joinAffiliate();
-      await load();
-      onRefresh?.();
-    } catch (err) {
-      setError(normalizeAffiliateError(err));
-    } finally {
-      setJoining(false);
-    }
+    setJoining(true); setErr("");
+    try { await joinAffiliate(); await load(); onRefresh?.(); }
+    catch(e) { setErr(e?.message||"Failed to join affiliate program."); }
+    finally  { setJoining(false); }
   }
 
   async function copyCode() {
-    await navigator.clipboard.writeText(affiliate?.code || "");
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+    await navigator.clipboard.writeText(aff?.code||"");
+    setCopied(true); setTimeout(() => setCopied(false), 1600);
   }
 
-  if (loading) {
-    return (
-      <div style={{ textAlign: "center", padding: 60 }}>
-        <Spinner />
-      </div>
-    );
-  }
+  if (loading) return <div style={{ textAlign:"center", padding:60 }}><Spinner size={28} /></div>;
 
-  if (notAffiliate) {
+  if (notAff) {
     return (
-      <div style={{ animation: "ffFadeIn 0.25s ease" }}>
-        <SectionTitle
-          title="Affiliate program"
-          subtitle="Earn commissions by referring friends to FluentFox."
-        />
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 14,
-            marginBottom: 16,
-          }}
-        >
+      <div>
+        <SectionHead title="Affiliate program" sub="Earn commission by referring friends to FluentFox." />
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 }}>
           {[
-            {
-              icon: "🔗",
-              title: "Get your code",
-              body: "A unique code that tracks your referrals.",
-            },
-            {
-              icon: "📤",
-              title: "Share it",
-              body: "Friends enter your code when they buy a plan.",
-            },
-            {
-              icon: "💰",
-              title: "Earn commission",
-              body: "Get a share of every sale from your code.",
-            },
-          ].map((item) => (
-            <Card key={item.title} dark={false} style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>{item.icon}</div>
-              <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: "0 0 6px" }}>
-                {item.title}
-              </p>
-              <p style={{ fontSize: 12, color: "#666", margin: 0, lineHeight: 1.65 }}>{item.body}</p>
-            </Card>
+            { icon:"🔗", t:"Get your code",    b:"A unique code that tracks your referrals." },
+            { icon:"📤", t:"Share it",          b:"Friends use your code when buying a plan." },
+            { icon:"💰", t:"Earn commission",   b:"Get paid a share of every sale from your code." },
+          ].map(item => (
+            <div key={item.t} style={{ background:C.surface, border:`1px solid ${C.border}`,
+              borderRadius:12, padding:"20px", textAlign:"center" }}>
+              <p style={{ fontSize:28, margin:"0 0 10px" }}>{item.icon}</p>
+              <p style={{ margin:"0 0 6px", fontSize:13, fontWeight:700, color:C.text }}>{item.t}</p>
+              <p style={{ margin:0, fontSize:12, color:C.textMuted, lineHeight:1.65 }}>{item.b}</p>
+            </div>
           ))}
         </div>
-
-        {error ? <Alert type="error">{error}</Alert> : null}
-
-        <Card dark={false} accent={FF.orange} style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 24, marginBottom: 8 }}>🦊</p>
-          <h3 style={{ fontSize: 16, fontWeight: 900, color: "#111", margin: "0 0 8px" }}>
-            Join the affiliate program
-          </h3>
-          <p style={{ fontSize: 12, color: "#666", marginBottom: 18 }}>
-            Free to join · Instant commission on every referral
-          </p>
-          <ActionBtn onClick={handleJoin} loading={joining} fullWidth>
-            Join now — get my code
-          </ActionBtn>
-        </Card>
+        {err && <Notice type="error">{err}</Notice>}
+        <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12,
+          padding:28, textAlign:"center" }}>
+          <p style={{ margin:"0 0 6px", fontSize:18, fontWeight:900, color:C.text,
+            fontFamily:"'Fraunces',serif" }}>Ready to join?</p>
+          <p style={{ margin:"0 0 20px", fontSize:13, color:C.textMuted }}>Free to join · Instant commission on every referral</p>
+          <Btn onClick={handleJoin} loading={joining}>Join affiliate program</Btn>
+        </div>
       </div>
     );
   }
 
-  const totalEarned = Number(affiliate?.total_earned ?? 0);
-  const pendingPayout = Number(affiliate?.pending_payout ?? 0);
-  const totalPaidOut = Number(affiliate?.total_paid_out ?? 0);
-  const totalReferrals = Number(affiliate?.total_referrals ?? 0);
+  const earned  = Number(aff?.total_earned   ?? 0);
+  const pending = Number(aff?.pending_payout ?? 0);
+  const paidOut = Number(aff?.total_paid_out ?? 0);
+  const total   = Number(aff?.total_referrals?? 0);
 
   return (
-    <div style={{ animation: "ffFadeIn 0.25s ease" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 16,
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <div>
-          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, margin: 0, color: "#111" }}>
-            Affiliate dashboard
-          </h3>
-          <p style={{ fontSize: 13, color: "#555", margin: "6px 0 0" }}>
-            Track referrals, earnings, and payouts.
-          </p>
-        </div>
-        <Badge
-          label={affiliate?.is_active ? "Active" : "Inactive"}
-          color={affiliate?.is_active ? FF.green : FF.mutedLight}
-          dark={false}
-        />
-      </div>
+    <div>
+      <SectionHead title="Affiliate dashboard" sub="Track referrals, earnings, and payouts."
+        action={<Tag color={aff?.is_active?C.green:C.textFaint}>{aff?.is_active?"Active":"Inactive"}</Tag>} />
 
-      {error ? <Alert type="error">{error}</Alert> : null}
-
-      <Card dark={false} accent={FF.orange} style={{ marginBottom: 16 }}>
-        <SLabel light>Your affiliate code</SLabel>
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <div
-            style={{
-              flex: 1,
-              background: "rgba(255,75,0,0.07)",
-              border: `1px solid ${FF.orange}44`,
-              borderRadius: 14,
-              padding: "16px 18px",
-              textAlign: "center",
-            }}
-          >
-            <p
-              style={{
-                margin: 0,
-                fontSize: 34,
-                fontWeight: 900,
-                color: FF.orange,
-                letterSpacing: "0.22em",
-                fontFamily: "monospace",
-              }}
-            >
-              {affiliate?.code || "—"}
-            </p>
+      {/* Code card */}
+      <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12,
+        padding:24, marginBottom:20 }}>
+        <p style={{ margin:"0 0 14px", fontSize:13, fontWeight:700, color:C.text }}>Your referral code</p>
+        <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+          <div style={{ flex:1, background:"#fff8f5", border:`1px solid ${C.orangeBorder}`,
+            borderRadius:10, padding:"16px 20px", textAlign:"center" }}>
+            <p style={{ margin:0, fontSize:32, fontWeight:900, color:C.orange,
+              letterSpacing:".2em", fontFamily:"monospace" }}>{aff?.code||"—"}</p>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <ActionBtn onClick={copyCode} variant="primary">
-              {copied ? "✓ Copied!" : "Copy code"}
-            </ActionBtn>
-            <p style={{ fontSize: 10, color: "#666", textAlign: "center", margin: 0 }}>
-              {affiliate?.commission_percent || 0}% commission
+          <div style={{ display:"flex", flexDirection:"column", gap:8, alignItems:"center" }}>
+            <Btn onClick={copyCode}>{copied ? "Copied ✓" : "Copy code"}</Btn>
+            <p style={{ margin:0, fontSize:12, color:C.textMuted, textAlign:"center" }}>
+              {aff?.commission_percent||0}% commission
             </p>
           </div>
         </div>
-        <p style={{ fontSize: 11, color: "#666", marginTop: 12, lineHeight: 1.7 }}>
-          Share this code with friends. When they buy a plan using your code, you earn commission automatically.
+        <p style={{ margin:"12px 0 0", fontSize:12, color:C.textMuted, lineHeight:1.7 }}>
+          When someone buys a plan using your code, you earn commission automatically.
         </p>
-      </Card>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <Stat label="Total earned" value={money(totalEarned)} hint="Across all approved referrals" color={FF.green} />
-        <Stat label="Pending payout" value={money(pendingPayout)} hint="Awaiting approval" color={FF.yellow} />
-        <Stat label="Total paid out" value={money(totalPaidOut)} hint="Already processed" color={FF.blue} />
-        <Stat label="Total referrals" value={totalReferrals} hint="Successful referral count" color={FF.orange} />
       </div>
 
-      <SectionTitle
-        title="Referral history"
-        subtitle="Each row shows a sale tracked from your code."
-      />
+      {/* Stats */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
+        <StatBox label="Total earned"   value={money(earned)}  sub="All approved referrals" color={C.green}  />
+        <StatBox label="Pending payout" value={money(pending)} sub="Awaiting approval"       color={C.yellow} />
+        <StatBox label="Total paid out" value={money(paidOut)} sub="Already processed"       color={C.blue}   />
+        <StatBox label="Referrals"      value={total}          sub="Successful"               color={C.orange} />
+      </div>
 
-      {referrals.length === 0 ? (
-        <EmptyState icon="📊" text="No referrals yet. Share your code to start earning!" dark={false} />
+      {/* Referral list */}
+      <p style={{ margin:"0 0 12px", fontSize:14, fontWeight:700, color:C.text }}>Referral history</p>
+      {refs.length===0 ? (
+        <Empty icon="📊" title="No referrals yet" sub="Share your code to start earning." />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {referrals.map((r, idx) => (
-            <div
-              key={r.id || idx}
-              style={{
-                background: "#fff",
-                border: "1px solid #ececf2",
-                borderRadius: 16,
-                padding: "14px 16px",
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                flexWrap: "wrap",
-                boxShadow: "0 10px 22px rgba(0,0,0,.04)",
-              }}
-            >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  flexShrink: 0,
-                  background: `${FF.green}18`,
-                  border: `1px solid ${FF.green}44`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 16,
-                }}
-              >
-                💸
+        <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, overflow:"hidden" }}>
+          {refs.map((r,i) => (
+            <div key={r.id||i} style={{
+              display:"flex", alignItems:"center", gap:14, padding:"16px 20px",
+              borderBottom: i<refs.length-1 ? `1px solid ${C.border}` : "none" }}>
+              <div style={{ width:36, height:36, borderRadius:9, flexShrink:0, background:"#f0fdf4",
+                border:"1px solid #86efac", display:"flex", alignItems:"center",
+                justifyContent:"center", fontSize:16 }}>💸</div>
+              <div style={{ flex:1 }}>
+                <p style={{ margin:"0 0 2px", fontSize:13, fontWeight:700, color:C.text }}>{r.plan_name||"Plan"}</p>
+                <p style={{ margin:0, fontSize:12, color:C.textMuted }}>{formatDate(r.created_at)}</p>
               </div>
-
-              <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111" }}>
-                  {r.plan_name || "Plan"}
-                </p>
-                <p style={{ margin: "3px 0 0", fontSize: 11, color: "#666" }}>
-                  {formatDate(r.created_at)}
-                </p>
-              </div>
-
-              <div style={{ textAlign: "right" }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111" }}>
-                  {money(r.amount_inr)}
-                </p>
-                <p style={{ margin: "3px 0 0", fontSize: 11, color: FF.green }}>
-                  +{money(r.commission_amount)} earned
-                </p>
+              <div style={{ textAlign:"right" }}>
+                <p style={{ margin:"0 0 2px", fontSize:13, fontWeight:700, color:C.text }}>{money(r.amount_inr)}</p>
+                <p style={{ margin:0, fontSize:12, color:C.green }}>+{money(r.commission_amount)} earned</p>
               </div>
             </div>
           ))}
@@ -1654,412 +834,160 @@ function AffiliateTab({ onRefresh }) {
   );
 }
 
-const ALL_TABS = {
-  overview: OverviewTab,
-  credits: CreditsTab,
-  keys: KeysTab,
-  payments: PaymentsTab,
-  affiliate: AffiliateTab,
-};
-
+/* ─────────────────────────────────────────────
+   SHELL / ROOT
+───────────────────────────────────────────── */
 export default function UserDashboard({ onLogout }) {
   const nav = useNavigate();
-  const [user, setUser] = useState(null);
-  const [affiliate, setAffiliate] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("overview");
-  const [metrics, setMetrics] = useState({
-    credits: 0,
-    activeKeys: 0,
-    payments: 0,
-    affiliateEarned: 0,
-  });
-  const [lastPayment, setLastPayment] = useState(null);
-  const [lastKey, setLastKey] = useState(null);
+  const [user, setUser]       = useState(null);
+  const [affiliate, setAff]   = useState(null);
+  const [loading, setLoad]    = useState(true);
+  const [tab, setTab]         = useState("overview");
+  const [metrics, setMetrics] = useState({ credits:0, activeKeys:0, payments:0, affiliateEarned:0 });
+  const [lastPayment, setLP]  = useState(null);
+  const [lastKey, setLK]      = useState(null);
 
   const refreshAll = useCallback(async () => {
     try {
-      const [me, paymentsRes, keysRes, affRes, refsRes] = await Promise.all([
+      const [me, pRes, kRes, aRes] = await Promise.all([
         ffGetMe(),
-        fetchMyPaymentHistory().catch(() => []),
-        fetchMyKeys().catch(() => []),
-        fetchMyAffiliateStats().catch(() => null),
-        fetchMyReferrals().catch(() => []),
+        fetchMyPaymentHistory().catch(()=>[]),
+        fetchMyKeys().catch(()=>[]),
+        fetchMyAffiliateStats().catch(()=>null),
       ]);
-
-      const payments = normalizeList(paymentsRes);
-      const keys = normalizeList(keysRes);
-      const affiliateStats = affRes || null;
-      const referrals = normalizeList(refsRes);
-
-      setUser(me);
-      setAffiliate(affiliateStats);
-
+      const pays = normalizeList(pRes);
+      const keys = normalizeList(kRes);
+      setUser(me); setAff(aRes);
       setMetrics({
-        credits: Number(me?.credits ?? 0),
-        activeKeys: keys.filter(isActiveKey).length,
-        payments: payments.filter((p) => p.status === "success").length,
-        affiliateEarned: Number(affiliateStats?.total_earned ?? 0),
+        credits:        Number(me?.credits??0),
+        activeKeys:     keys.filter(isActiveKey).length,
+        payments:       pays.filter(p=>p.status==="success").length,
+        affiliateEarned:Number(aRes?.total_earned??0),
       });
-
-      setLastPayment(
-        payments
-          .slice()
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          .find((p) => p.status === "success") || null
-      );
-
-      setLastKey(
-        keys
-          .slice()
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null
-      );
-
-      if (referrals?.length === 0 && affiliateStats) {
-        // no-op
-      }
-    } catch (err) {
-      console.error(err);
-    }
+      setLP(pays.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).find(p=>p.status==="success")||null);
+      setLK(keys.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0]||null);
+    } catch(e) { console.error(e); }
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-
+    let live = true;
     (async () => {
-      try {
-        const me = await ffGetMe();
-        if (!mounted) return;
-        setUser(me);
-      } catch {
-        ffLogout();
-        onLogout?.();
-        return;
-      } finally {
-        if (mounted) setLoading(false);
-      }
+      try { const me = await ffGetMe(); if (live) setUser(me); }
+      catch { ffLogout(); onLogout?.(); }
+      finally { if (live) setLoad(false); }
     })();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { live = false; };
   }, [onLogout]);
 
-  useEffect(() => {
-    if (!user) return;
-    refreshAll();
-  }, [user, refreshAll]);
+  useEffect(() => { if (user) refreshAll(); }, [user, refreshAll]);
 
-  function handleLogout() {
-    ffLogout();
-    onLogout?.();
-    nav("/");
-  }
+  function handleLogout() { ffLogout(); onLogout?.(); nav("/"); }
 
-  const ActiveTab = ALL_TABS[tab] || OverviewTab;
-
-  const shellStyles = {
-    minHeight: "100vh",
-    background: `linear-gradient(180deg, ${FF.orangePale} 0%, #fff 24%, #f6f1e8 100%)`,
-    color: FF.textLight,
-    fontFamily: "'Plus Jakarta Sans', sans-serif",
-    overflowX: "hidden",
-  };
-
-  if (loading) {
-    return (
-      <div style={{ ...shellStyles, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Spinner />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:C.bg }}>
+      <Spinner size={32} />
+    </div>
+  );
 
   return (
-    <div style={shellStyles}>
+    <div style={{ minHeight:"100vh", background:C.bg, color:C.text,
+      fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
+
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Fraunces:opsz,wght@9..144,700;9..144,900&display=swap');
-        * { box-sizing: border-box; }
-        @keyframes ffSpin { to { transform: rotate(360deg); } }
-        @keyframes ffFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 999px; }
-        input::placeholder { color: rgba(0,0,0,0.28); }
-        button:focus-visible, input:focus-visible {
-          outline: 2px solid ${FF.orange};
-          outline-offset: 2px;
-        }
-        .dashboard-shell {
-          display: grid;
-          grid-template-columns: 278px minmax(0, 1fr);
-          min-height: 100vh;
-          width: 100%;
-        }
-        .dashboard-sidebar {
-          position: sticky;
-          top: 0;
-          height: 100vh;
-          overflow: auto;
-          border-right: 1px solid rgba(0,0,0,.06);
-          background: rgba(255,255,255,.7);
-          backdrop-filter: blur(16px);
-        }
-        .dashboard-main {
-          min-width: 0;
-          height: 100vh;
-          overflow: auto;
-        }
-        @media (max-width: 980px) {
-          .dashboard-shell {
-            grid-template-columns: 1fr;
-          }
-          .dashboard-sidebar {
-            position: relative;
-            height: auto;
-            border-right: none;
-            border-bottom: 1px solid rgba(0,0,0,.06);
-          }
-          .dashboard-main {
-            height: auto;
-          }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Fraunces:opsz,wght@9..144,700;9..144,900&display=swap');
+        *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+        .tab-content { animation: fadeIn .2s ease both; }
+        ::-webkit-scrollbar { width:5px; }
+        ::-webkit-scrollbar-thumb { background:rgba(0,0,0,.12); border-radius:99px; }
+        input, button { font-family:inherit; }
+        input:focus { outline:2px solid ${C.orange}; outline-offset:1px; border-color:transparent !important; }
+        .nav-btn:hover { background:#fff5f2 !important; color:${C.orange} !important; }
+        .nav-btn.active { background:#fff5f2 !important; color:${C.orange} !important; font-weight:800; border-left:3px solid ${C.orange} !important; }
       `}</style>
 
-      <div className="dashboard-shell">
-        <aside className="dashboard-sidebar">
-          <div
-            style={{
-              position: "relative",
-              background: `linear-gradient(135deg, #e63c00 0%, ${FF.orange} 42%, #ff6a1a 100%)`,
-              color: "#fff",
-              overflow: "hidden",
-              boxShadow: "0 18px 40px rgba(255,75,0,.18)",
-              minHeight: 240,
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                right: -60,
-                top: -60,
-                width: 220,
-                height: 220,
-                borderRadius: "50%",
-                background: "rgba(255,255,255,.08)",
-                pointerEvents: "none",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                left: -80,
-                bottom: -60,
-                width: 260,
-                height: 260,
-                borderRadius: "50%",
-                background: "rgba(0,0,0,.08)",
-                pointerEvents: "none",
-              }}
-            />
+      <div style={{ display:"grid", gridTemplateColumns:"240px 1fr", minHeight:"100vh" }}>
 
-            <div style={{ padding: 18, position: "relative", zIndex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div
-                  style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 14,
-                    background: "rgba(255,255,255,.16)",
-                    border: "1px solid rgba(255,255,255,.18)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
-                  }}
-                >
-                  <img
-                    src="/company-logo.webp"
-                    alt="FluentFox"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                    style={{ width: 28, height: 28, objectFit: "contain" }}
-                  />
-                </div>
+        {/* ── Sidebar ── */}
+        <aside style={{ background:C.surface, borderRight:`1px solid ${C.border}`,
+          display:"flex", flexDirection:"column", position:"sticky", top:0, height:"100vh", overflowY:"auto" }}>
 
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase" }}>
-                    FluentFox
-                  </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.68)", marginTop: 3 }}>
-                    User dashboard
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ marginTop: 18 }}>
-                <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,.62)", textTransform: "uppercase", letterSpacing: ".16em" }}>
-                  Signed in as
-                </p>
-                <p style={{ margin: "6px 0 0", fontSize: 20, fontWeight: 900, lineHeight: 1.2 }}>
-                  {user?.name || "User"}
-                </p>
-                <p style={{ margin: "6px 0 0", fontSize: 12, color: "rgba(255,255,255,.76)", lineHeight: 1.6 }}>
-                  {user?.email || "No email loaded"}
-                </p>
-
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-                  <Badge label={`${user?.credits ?? 0} credits`} color="#fff" dark />
-                  <Badge label={user?.role || "USER"} color="#fff" dark />
-                </div>
+          {/* Logo */}
+          <div style={{ padding:"20px 20px 16px", borderBottom:`1px solid ${C.border}` }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <img src="/company_logo.webp" alt="FluentFox"
+                onError={e=>{ e.currentTarget.style.display="none"; }}
+                style={{ width:32, height:32, objectFit:"contain", flexShrink:0 }} />
+              <div>
+                <p style={{ margin:0, fontSize:13, fontWeight:900, color:C.text, letterSpacing:".04em" }}>FluentFox</p>
+                <p style={{ margin:0, fontSize:11, color:C.textFaint }}>Dashboard</p>
               </div>
             </div>
           </div>
 
-          <div style={{ padding: 14 }}>
-            <Card dark={false} style={{ padding: 12, marginBottom: 14 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {TABS.map((item) => {
-                  const active = tab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => setTab(item.id)}
-                      style={{
-                        border: "1px solid " + (active ? `${FF.orange}44` : "#ececf2"),
-                        background: active ? `${FF.orange}10` : "#fff",
-                        color: "#111",
-                        borderRadius: 16,
-                        padding: "12px 12px",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        transition: "transform .15s ease, background .15s ease, border-color .15s ease",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        boxShadow: active ? "0 12px 24px rgba(255,75,0,.08)" : "none",
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-1px)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
-                    >
-                      <span
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 10,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: active ? `${FF.orange}18` : "#f5f6f8",
-                          color: active ? FF.orange : "#666",
-                          fontSize: 14,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {item.icon}
-                      </span>
-                      <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.04em" }}>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </Card>
+          {/* User info */}
+          <div style={{ padding:"16px 20px", borderBottom:`1px solid ${C.border}` }}>
+            <p style={{ margin:"0 0 1px", fontSize:13, fontWeight:700, color:C.text,
+              whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+              {user?.name || "User"}
+            </p>
+            <p style={{ margin:"0 0 8px", fontSize:12, color:C.textMuted,
+              whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+              {user?.email || ""}
+            </p>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              <Tag color={C.orange}>{user?.credits??0} credits</Tag>
+              <Tag color={C.textMuted}>{user?.role||"USER"}</Tag>
+            </div>
+          </div>
 
-            <Card dark={false} style={{ padding: 12 }}>
-              <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "#888", margin: "0 0 10px" }}>
-                Session snapshot
-              </p>
+          {/* Nav */}
+          <nav style={{ padding:"10px 12px", flex:1 }}>
+            {TABS.map(t => (
+              <button key={t.id} onClick={()=>setTab(t.id)}
+                className={`nav-btn${tab===t.id?" active":""}`}
+                style={{ width:"100%", display:"flex", alignItems:"center", gap:10,
+                  padding:"10px 12px", borderRadius:8, border:`1px solid transparent`,
+                  background:"transparent", cursor:"pointer", textAlign:"left",
+                  marginBottom:2, color: tab===t.id?C.orange:C.textMid,
+                  fontSize:13, fontWeight: tab===t.id?800:600,
+                  borderLeft: tab===t.id?`3px solid ${C.orange}`:"3px solid transparent",
+                  transition:"all .13s ease" }}>
+                <span style={{ fontSize:14, width:18, textAlign:"center", flexShrink:0 }}>{t.icon}</span>
+                {t.label}
+              </button>
+            ))}
+          </nav>
 
-              <div style={{ display: "grid", gap: 8 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: "#fff",
-                    border: "1px solid #ececf2",
-                    borderRadius: 12,
-                    padding: "10px 12px",
-                  }}
-                >
-                  <span style={{ fontSize: 12, color: "#444", fontWeight: 700 }}>Credits</span>
-                  <Badge label={`${user?.credits ?? 0}`} color={FF.green} dark={false} />
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: "#fff",
-                    border: "1px solid #ececf2",
-                    borderRadius: 12,
-                    padding: "10px 12px",
-                  }}
-                >
-                  <span style={{ fontSize: 12, color: "#444", fontWeight: 700 }}>Active keys</span>
-                  <Badge label={`${metrics.activeKeys}`} color={FF.blue} dark={false} />
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: "#fff",
-                    border: "1px solid #ececf2",
-                    borderRadius: 12,
-                    padding: "10px 12px",
-                  }}
-                >
-                  <span style={{ fontSize: 12, color: "#444", fontWeight: 700 }}>Payments</span>
-                  <Badge label={`${metrics.payments}`} color={FF.orange} dark={false} />
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                <ActionBtn onClick={() => nav("/")} variant="ghost" small>
-                  Home
-                </ActionBtn>
-                <ActionBtn onClick={() => nav("/access-pricing")} variant="ghost" small>
-                  Pricing
-                </ActionBtn>
-                <ActionBtn onClick={handleLogout} variant="danger" small>
-                  Logout
-                </ActionBtn>
-              </div>
-            </Card>
+          {/* Bottom actions */}
+          <div style={{ padding:"12px 16px", borderTop:`1px solid ${C.border}`,
+            display:"flex", flexDirection:"column", gap:6 }}>
+            <button onClick={() => nav("/")}
+              style={{ background:"none", border:"none", cursor:"pointer", textAlign:"left",
+                fontSize:12, fontWeight:600, color:C.textMuted, padding:"6px 4px" }}>
+              ← Back to site
+            </button>
+            <button onClick={handleLogout}
+              style={{ background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:8,
+                cursor:"pointer", fontSize:12, fontWeight:700, color:C.red,
+                padding:"9px 14px", textAlign:"center" }}>
+              Sign out
+            </button>
           </div>
         </aside>
 
-        <main className="dashboard-main">
-          <div style={{ padding: 14 }}>
-            <Card dark={false} style={{ padding: 16, minHeight: "calc(100vh - 28px)" }}>
-              {tab === "overview" ? (
-                <OverviewTab
-                  user={user}
-                  metrics={metrics}
-                  onSwitchTab={setTab}
-                  lastPayment={lastPayment}
-                  lastKey={lastKey}
-                  affiliate={affiliate}
-                />
-              ) : null}
-
-              {tab === "credits" ? (
-                <CreditsTab user={user} onRefresh={refreshAll} onSwitchTab={setTab} />
-              ) : null}
-
-              {tab === "keys" ? (
-                <KeysTab user={user} onRefresh={refreshAll} onSwitchTab={setTab} />
-              ) : null}
-
-              {tab === "payments" ? <PaymentsTab /> : null}
-
-              {tab === "affiliate" ? (
-                <AffiliateTab onRefresh={refreshAll} />
-              ) : null}
-            </Card>
+        {/* ── Main content ── */}
+        <main style={{ padding:28, overflowY:"auto", minWidth:0 }}>
+          <div className="tab-content" key={tab}>
+            {tab==="overview"  && <OverviewTab  user={user} metrics={metrics} onTab={setTab} lastPayment={lastPayment} lastKey={lastKey} affiliate={affiliate} />}
+            {tab==="credits"   && <CreditsTab   user={user} onRefresh={refreshAll} onTab={setTab} />}
+            {tab==="keys"      && <KeysTab      user={user} onRefresh={refreshAll} onTab={setTab} />}
+            {tab==="payments"  && <PaymentsTab  />}
+            {tab==="affiliate" && <AffiliateTab onRefresh={refreshAll} />}
           </div>
         </main>
+
       </div>
     </div>
   );
