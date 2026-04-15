@@ -26,7 +26,7 @@ const SupportHelp = () => {
                 href="mailto:hello@fluentfox.ai"
                 className="underline underline-offset-4 decoration-[#ffb78a]/80"
               >
-                hello@fluentfox.ai
+                rahul@fluentfox.in
               </a>{" "}
               for:
             </p>
