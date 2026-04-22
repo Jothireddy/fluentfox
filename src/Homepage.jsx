@@ -1,16 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchActivePlans } from "./api3";
 
 const ORANGE = "#ff4b00";
 const CREAM  = "#fdf8f0";
 const DARK   = "#0d0d0d";
 const FLUENTFOX_LOGO = "/company_logo.webp";
 
-// ── Colorful brand logos: omit color param = simpleicons uses each brand's official HEX color
 const SIMPLEICONS_COLOR = (slug) => `https://cdn.simpleicons.org/${slug}`;
 
-// ── Company ticker — brand bg colors so logos always show on the dark ticker
 const companies = [
   { name: "Google",     slug: "google",     bg: "#fff",    size: 20 },
   { name: "Amazon",     slug: "amazon",     bg: "#fff",    size: 20 },
@@ -30,7 +27,6 @@ const companies = [
   { name: "LinkedIn",   slug: "linkedin",   bg: "#fff",    size: 20 },
 ];
 
-// ── Platform data with simpleicons slugs + brand colors
 const platforms = [
   { name: "Zoom",            slug: "zoom",           bg: "#2D8CFF" },
   { name: "Google Meet",     slug: "googlemeet",     bg: "#00AC47" },
@@ -40,7 +36,6 @@ const platforms = [
   { name: "Amazon Chime",    slug: "amazonaws",      bg: "#FF9900" },
 ];
 
-// ── Indian testimonials with pravatar.cc photo IDs
 const testimonials = [
   { name: "Ananya Mehta",    handle: "@ananya_pm",      role: "Product Analyst · Bangalore",    img: "https://i.pravatar.cc/80?img=47", text: "The real-time preview stopped me freezing completely. It felt like having a calm second brain that never panics — even when I do. Two offers in under a month.",  stars: 5 },
   { name: "Rohan Verma",     handle: "@rohan_codes",    role: "Software Engineer · Pune",        img: "https://i.pravatar.cc/80?img=68", text: "Before this, I could answer technical questions in my head but never under pressure. FluentFox gave me structure instantly — I sounded clear, sharp, and composed.", stars: 5 },
@@ -62,9 +57,6 @@ const faqs = [
   { q: "What interview types does it cover?",               a: "It handles behavioral, competency-based, technical, situational, and open-ended interview questions across roles and industries." },
 ];
 
-/* ═══════════════════════════════════════════════════════
-   GLOBAL CSS — keyframes + layout grid classes
-═══════════════════════════════════════════════════════ */
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,700;9..144,900&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -82,7 +74,6 @@ const GLOBAL_CSS = `
   @keyframes tick      { from{transform:translateX(0)} to{transform:translateX(-50%)} }
   @keyframes skeleton  { 0%,100%{opacity:.35} 50%{opacity:.75} }
   @keyframes shimmer   { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
-  @keyframes pricePulse{ 0%,100%{box-shadow:0 0 0 0 rgba(255,75,0,0)} 50%{box-shadow:0 0 32px 0 rgba(255,75,0,.18)} }
 
   .ff-word       { display:inline-block; animation:wordPop .32s ease forwards; }
   .ff-rise       { animation:riseUp .75s ease both; }
@@ -95,7 +86,6 @@ const GLOBAL_CSS = `
   .ff-skeleton   { animation:skeleton 1.4s ease-in-out infinite; }
   .ff-sp1        { animation:softPulse 8s ease-in-out infinite; }
   .ff-sp2        { animation:softPulse 10s ease-in-out infinite; }
-  .ff-price-pulse{ animation:pricePulse 3s ease-in-out infinite; }
 
   .ff-bg::before {
     content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
@@ -114,15 +104,11 @@ const GLOBAL_CSS = `
   .review-grid  { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; align-items:start; }
   .stats-grid   { display:grid; grid-template-columns:repeat(4,1fr); }
   .cta2-grid    { display:grid; grid-template-columns:2fr 1.35fr; gap:34px; align-items:center; }
-  .plans-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; }
-  .plans-grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:22px; }
-  .plans-grid-1 { display:grid; grid-template-columns:1fr; gap:22px; max-width:480px; margin:0 auto; }
 
   @media(max-width:900px){
     .hero-grid  { grid-template-columns:1fr; gap:26px; }
     .steps-grid { grid-template-columns:repeat(2,1fr); }
     .w4-grid    { grid-template-columns:repeat(2,1fr); }
-    .plans-grid-3 { grid-template-columns:repeat(2,1fr); }
   }
   @media(max-width:820px){ .review-grid  { grid-template-columns:repeat(2,1fr); } }
   @media(max-width:800px){ .cta2-grid    { grid-template-columns:1fr; gap:24px; } }
@@ -131,15 +117,12 @@ const GLOBAL_CSS = `
   @media(max-width:680px){
     .stats-grid   { grid-template-columns:repeat(2,1fr); }
     .review-grid  { grid-template-columns:1fr; }
-    .plans-grid-2 { grid-template-columns:1fr; }
-    .plans-grid-3 { grid-template-columns:1fr; }
   }
   @media(max-width:480px){
     .steps-grid { grid-template-columns:1fr; }
     .w4-grid    { grid-template-columns:1fr; }
   }
 
-  /* ticker logo background pill */
   .ticker-logo-bg {
     width:34px; height:34px; border-radius:9px;
     display:flex; align-items:center; justify-content:center;
@@ -153,24 +136,12 @@ const GLOBAL_CSS = `
   }
   .ticker-item:hover span { color: #fff !important; }
 
-  /* Platform pill hover */
   .plat-pill { transition:transform .18s ease, box-shadow .18s ease, background .18s ease; }
   .plat-pill:hover { transform:translateY(-3px); box-shadow:0 10px 24px rgba(0,0,0,.12); }
 
-  /* Pricing card shimmer on hover */
-  .price-shimmer { position:relative; overflow:hidden; }
-  .price-shimmer::after {
-    content:''; position:absolute; top:0; left:0; right:0; bottom:0;
-    background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.08) 50%,transparent 60%);
-    transform:translateX(-100%); transition:transform .4s ease; pointer-events:none;
-  }
-  .price-shimmer:hover::after { transform:translateX(100%); }
-
-  /* Review card */
   .review-card { transition: transform .22s ease, box-shadow .22s ease; }
   .review-card:hover { transform:translateY(-5px); box-shadow:0 20px 40px rgba(0,0,0,.16); }
 
-  /* Avatar ring */
   .avatar-img {
     width:52px; height:52px; border-radius:50%; object-fit:cover;
     border:2px solid rgba(255,75,0,.25);
@@ -179,7 +150,6 @@ const GLOBAL_CSS = `
   }
 `;
 
-/* ─── Pill badge ─── */
 function Pill({ children, bg = "rgba(255,75,0,0.12)", color = ORANGE }) {
   return (
     <span style={{ display:"inline-block", fontSize:10, fontWeight:800, letterSpacing:"0.14em",
@@ -190,7 +160,6 @@ function Pill({ children, bg = "rgba(255,75,0,0.12)", color = ORANGE }) {
   );
 }
 
-/* ─── Brand logo with fallback ─── */
 function BrandLogo({ src, name, size = 28, invert = false }) {
   const [failed, setFailed] = useState(false);
   if (failed) {
@@ -209,7 +178,6 @@ function BrandLogo({ src, name, size = 28, invert = false }) {
   );
 }
 
-/* ─── Phone icon SVG ─── */
 function PhoneIcon({ size = 20 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.2"
@@ -219,129 +187,12 @@ function PhoneIcon({ size = 20 }) {
   );
 }
 
-/* ════════════════════════════════════════════
-   PRICING CARD — redesigned
-════════════════════════════════════════════ */
-function PricingCard({ plan, highlight, index }) {
-  const nav    = useNavigate();
-  const price  = Number(plan?.price_inr ?? 0);
-  const credits = Number(plan?.credits ?? 1);
-  const perSession = credits > 0 ? Math.round(price / credits) : null;
-
-  return (
-    <div className={`ff-float-card price-shimmer ${highlight ? "ff-price-pulse" : ""}`}
-      style={{
-        background: highlight
-          ? "linear-gradient(145deg,#ffffff,#fff8f5)"
-          : "rgba(255,255,255,0.07)",
-        border: highlight ? "2px solid rgba(255,255,255,.95)" : "1px solid rgba(255,255,255,.14)",
-        borderRadius: 28, padding: highlight ? "40px 32px 32px" : "34px 28px 28px",
-        position: "relative",
-        transition: "transform .22s ease",
-        animationDelay: `${index * 0.15}s`,
-        boxShadow: highlight ? "0 24px 60px rgba(0,0,0,.2)" : "0 4px 20px rgba(0,0,0,.1)",
-        minHeight: highlight ? 480 : 420,
-      }}
-      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-8px)"; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}>
-
-      {highlight && (
-        <>
-          {/* Decorative top gradient bar */}
-          <div style={{ position:"absolute", top:0, left:0, right:0, height:4,
-            background:"linear-gradient(90deg,#ff4b00,#ff8c00,#ff4b00)",
-            borderRadius:"24px 24px 0 0" }} />
-          <div style={{ position:"absolute", top:-13, left:"50%", transform:"translateX(-50%)",
-            background:"linear-gradient(135deg,#ff4b00,#ff7a2f)",
-            color:"#fff", fontSize:9, fontWeight:800, letterSpacing:".14em",
-            textTransform:"uppercase", borderRadius:999, padding:"5px 16px",
-            whiteSpace:"nowrap", boxShadow:"0 4px 14px rgba(255,75,0,.4)" }}>
-            ✦ Best value
-          </div>
-        </>
-      )}
-
-      {/* Plan name */}
-      <p style={{ fontSize:10, fontWeight:800, letterSpacing:".16em", textTransform:"uppercase",
-        color: highlight ? ORANGE : "rgba(255,255,255,.45)", marginBottom:12 }}>
-        {plan?.name ?? "Plan"}
-      </p>
-
-      {/* Price */}
-      <div style={{ display:"flex", alignItems:"flex-start", gap:3, marginBottom:4 }}>
-        <span style={{ fontFamily:"'Fraunces',serif", fontSize:15, fontWeight:900,
-          color:highlight?"#999":"rgba(255,255,255,.5)", marginTop:12 }}>₹</span>
-        <span style={{ fontFamily:"'Fraunces',serif", fontSize:68, fontWeight:900, lineHeight:1,
-          color:highlight?"#111":"#fff", letterSpacing:"-0.02em" }}>
-          {price.toLocaleString()}
-        </span>
-      </div>
-
-      {/* Sessions */}
-      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-        <span style={{ fontSize:13, fontWeight:700,
-          color:highlight?"#555":"rgba(255,255,255,.6)" }}>
-          {credits} session{credits > 1 ? "s" : ""}
-        </span>
-        {perSession != null && (
-          <span style={{ background: highlight ? "rgba(255,75,0,.1)" : "rgba(255,255,255,.1)",
-            color: highlight ? ORANGE : "#ffb78a", fontWeight:800, fontSize:11,
-            borderRadius:999, padding:"3px 10px", letterSpacing:".04em" }}>
-            ₹{perSession}/session
-          </span>
-        )}
-      </div>
-
-      <p style={{ fontSize:12, lineHeight:1.65,
-        color:highlight?"#777":"rgba(255,255,255,.42)", marginBottom:22, marginTop:8 }}>
-        {plan?.description || "Pay only when you need interview support. No subscription, no long-term commitment."}
-      </p>
-
-      {/* Features list for highlighted card */}
-      {highlight && (
-        <ul style={{ listStyle:"none", display:"flex", flexDirection:"column", gap:8, marginBottom:22 }}>
-          {["Real-time structured answers","Resume & JD personalised","Any interview platform","Auto-refund guarantee"].map(f => (
-            <li key={f} style={{ display:"flex", alignItems:"center", gap:8,
-              fontSize:12, color:"#444" }}>
-              <span style={{ width:16, height:16, borderRadius:"50%",
-                background:"linear-gradient(135deg,#ff4b00,#ff7a2f)",
-                display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:8, color:"#fff", flexShrink:0, fontWeight:800 }}>✓</span>
-              {f}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <button onClick={() => nav("/access-pricing")}
-        style={{ width:"100%", border:"none", borderRadius:16, padding: highlight?"17px 0":"15px 0",
-          fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:14, fontWeight:800,
-          letterSpacing:".08em", textTransform:"uppercase", cursor:"pointer",
-          background: highlight
-            ? "linear-gradient(135deg,#ff4b00,#ff7a2f)"
-            : "rgba(255,255,255,.12)",
-          color:"#fff",
-          boxShadow: highlight ? "0 8px 24px rgba(255,75,0,.4)" : "none",
-          transition:"all .18s ease" }}
-        onMouseEnter={e => { e.currentTarget.style.opacity = ".88"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-        onMouseLeave={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "none"; }}>
-        {highlight ? "Get started →" : "Get started"}
-      </button>
-    </div>
-  );
-}
-
-/* ════════════════════════════════════════════
-   HOMEPAGE
-════════════════════════════════════════════ */
 export default function Homepage() {
   const nav = useNavigate();
   const words = useMemo(() => ["confident", "clear", "calm"], []);
   const [wi, setWi]               = useState(0);
   const [faq, setFaq]             = useState(-1);
   const [mode, setMode]           = useState("before");
-  const [plans, setPlans]         = useState([]);
-  const [plansLoading, setPL]     = useState(true);
   const [heroShift, setHeroShift] = useState({ x:0, y:0 });
   const doubledCompanies          = useMemo(() => [...companies, ...companies], []);
 
@@ -349,16 +200,6 @@ export default function Homepage() {
     const t = setInterval(() => setWi(i => (i+1) % words.length), 2200);
     return () => clearInterval(t);
   }, [words.length]);
-
-  useEffect(() => {
-    let live = true;
-    setPL(true);
-    fetchActivePlans()
-      .then(d => { if (live) setPlans(Array.isArray(d) ? d : []); })
-      .catch(() => { if (live) setPlans([]); })
-      .finally(() => { if (live) setPL(false); });
-    return () => { live = false; };
-  }, []);
 
   const fraunces = { fontFamily:"'Fraunces',serif" };
   const jakarta  = { fontFamily:"'Plus Jakarta Sans',sans-serif" };
@@ -377,8 +218,6 @@ export default function Homepage() {
     { label:"Walking out",    t:"You know you nailed it",              b:"Specific, confident, memorable answers — the kind that stick in an interviewer's mind for days." },
   ];
   const shiftCards = mode === "before" ? beforeCards : afterCards;
-
-  const plansGridClass = plans.length >= 3 ? "plans-grid-3" : plans.length === 2 ? "plans-grid-2" : "plans-grid-1";
 
   return (
     <div className="ff-bg"
@@ -445,14 +284,6 @@ export default function Homepage() {
                 onMouseEnter={e=>{ e.currentTarget.style.background="#ffe9dd"; e.currentTarget.style.transform="translateY(-1px) scale(1.015)"; }}
                 onMouseLeave={e=>{ e.currentTarget.style.background="#fff"; e.currentTarget.style.transform="none"; }}>
                 Get started
-              </button>
-              <button onClick={() => document.getElementById("pricing-sec")?.scrollIntoView({ behavior:"smooth" })}
-                style={{ ...jakarta, background:"transparent", color:"#fff", fontSize:12, fontWeight:700,
-                  letterSpacing:".06em", border:"1.5px solid rgba(255,255,255,.38)", borderRadius:999,
-                  padding:"12px 22px", cursor:"pointer", transition:"all .15s ease" }}
-                onMouseEnter={e=>{ e.currentTarget.style.borderColor="#fff"; e.currentTarget.style.background="rgba(255,255,255,.07)"; e.currentTarget.style.transform="translateY(-1px)"; }}
-                onMouseLeave={e=>{ e.currentTarget.style.borderColor="rgba(255,255,255,.38)"; e.currentTarget.style.background="transparent"; e.currentTarget.style.transform="none"; }}>
-                See pricing ↓
               </button>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:14, marginTop:18, paddingTop:18,
@@ -531,7 +362,7 @@ export default function Homepage() {
         </div>
       </section>
 
-      {/* ═══════════════════ TICKER — colorful logos ═══════════════════ */}
+      {/* ═══════════════════ TICKER ═══════════════════ */}
       <div style={{ background:"#111", borderTop:"0.5px solid rgba(255,255,255,.06)",
         height:66, display:"flex", alignItems:"center", gap:0, overflow:"hidden",
         padding:"0 clamp(18px,4vw,40px)" }}>
@@ -555,8 +386,7 @@ export default function Homepage() {
                   <BrandLogo src={SIMPLEICONS_COLOR(c.slug)} name={c.name} size={c.size ?? 18} />
                 </div>
                 <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,.75)",
-                  letterSpacing:".02em", whiteSpace:"nowrap",
-                  transition:"color .2s ease" }}>
+                  letterSpacing:".02em", whiteSpace:"nowrap", transition:"color .2s ease" }}>
                   {c.name}
                 </span>
               </div>
@@ -620,14 +450,12 @@ export default function Homepage() {
           <div style={{ height:0.5, background:"rgba(0,0,0,.07)", margin:"28px 0" }} />
           <Pill bg="rgba(0,0,0,.06)" color="#444">Works alongside any platform</Pill>
 
-          {/* Platform pills with logos */}
           <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginTop:18 }}>
             {platforms.map((p) => (
               <div key={p.name} className="plat-pill"
                 style={{ display:"flex", alignItems:"center", gap:9, background:"#fff",
                   border:"0.5px solid rgba(0,0,0,.07)", borderRadius:999, padding:"8px 16px 8px 10px",
                   cursor:"default" }}>
-                {/* Logo circle with brand color bg */}
                 <span style={{ width:28, height:28, borderRadius:"50%", background:p.bg,
                   display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
                   boxShadow:`0 2px 8px ${p.bg}55` }}>
@@ -762,20 +590,15 @@ export default function Homepage() {
                     ? "0 8px 32px rgba(255,75,0,.08)"
                     : "0 4px 20px rgba(0,0,0,.3)",
                 }}>
-                {/* Top accent line */}
                 <div style={{ position:"absolute", top:0, left:0, right:0, height:3,
                   background: idx % 3 === 1
                     ? "linear-gradient(90deg,#ff4b00,#ff8c00)"
                     : "linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)",
                   borderRadius:"22px 22px 0 0" }} />
-
-                {/* Large decorative quote mark */}
                 <div style={{ position:"absolute", bottom:-10, right:16,
                   fontFamily:"'Fraunces',serif", fontSize:88, fontWeight:900, lineHeight:1,
                   color: idx % 3 === 1 ? "rgba(255,75,0,.09)" : "rgba(255,255,255,.04)",
                   userSelect:"none", pointerEvents:"none" }}>"</div>
-
-                {/* Stars + Verified row */}
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
                   <div style={{ color:"#f59e0b", fontSize:13, letterSpacing:3 }}>{"★".repeat(r.stars)}</div>
                   <span style={{ fontSize:9, fontWeight:700, letterSpacing:".12em", textTransform:"uppercase",
@@ -786,22 +609,16 @@ export default function Homepage() {
                     Verified ✓
                   </span>
                 </div>
-
-                {/* Review text */}
                 <p style={{ fontSize:13.5, lineHeight:1.78, color:"rgba(255,255,255,.85)",
                   marginBottom:20, position:"relative", zIndex:1,
                   fontStyle:"italic", letterSpacing:".01em" }}>
                   "{r.text}"
                 </p>
-
-                {/* Divider */}
                 <div style={{ height:"0.5px",
                   background: idx % 3 === 1
                     ? "linear-gradient(90deg,rgba(255,75,0,.25),transparent)"
                     : "rgba(255,255,255,.08)",
                   marginBottom:16 }} />
-
-                {/* Author */}
                 <div style={{ display:"flex", alignItems:"center", gap:12, position:"relative", zIndex:1 }}>
                   <div style={{ position:"relative", flexShrink:0 }}>
                     <img src={r.img} alt={r.name}
@@ -824,7 +641,6 @@ export default function Homepage() {
             ))}
           </div>
 
-          {/* Aggregate stats bar */}
           <div style={{ marginTop:32, display:"flex", alignItems:"center", justifyContent:"center",
             gap:32, flexWrap:"wrap", padding:"22px 28px",
             background:"rgba(255,255,255,.03)", border:"0.5px solid rgba(255,255,255,.07)", borderRadius:18 }}>
@@ -846,85 +662,6 @@ export default function Homepage() {
               </React.Fragment>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════ PRICING — redesigned ═══════════════════ */}
-      <section id="pricing-sec" style={{ background:"#0d0d0d", color:"#fff", ...sec, position:"relative", overflow:"hidden" }}>
-        {/* Background decoration */}
-        <div style={{ position:"absolute", top:-120, left:"50%", transform:"translateX(-50%)",
-          width:700, height:700, borderRadius:"50%",
-          background:"radial-gradient(circle,rgba(255,75,0,.07) 0%,transparent 70%)",
-          pointerEvents:"none" }} />
-
-        <div style={{ ...inner, position:"relative", zIndex:1 }}>
-          {/* Header */}
-          <div style={{ textAlign:"center", marginBottom:48 }}>
-            <Pill bg="rgba(255,75,0,0.15)" color="#ff7a2f">Pricing</Pill>
-            <h2 style={{ ...h2style, marginBottom:14 }}>Pay per session. No subscriptions.</h2>
-            <p style={{ fontSize:15, color:"rgba(255,255,255,.5)", maxWidth:520, margin:"0 auto", lineHeight:1.72 }}>
-              Buy credits when you have interviews coming up. Use them whenever you need support.
-              Credits never expire.
-            </p>
-          </div>
-
-          {/* Guarantee strip above cards */}
-          <div style={{ display:"flex", gap:24, flexWrap:"wrap", justifyContent:"center",
-            marginBottom:32, padding:"14px 24px", background:"rgba(255,255,255,.04)",
-            border:"0.5px solid rgba(255,255,255,.09)", borderRadius:16 }}>
-            {[
-              { icon:"🔁", label:"Auto-refund under 10 mins" },
-              { icon:"🔒", label:"Audio never stored" },
-              { icon:"✓", label:"No subscription" },
-              { icon:"📱", label:"Any platform" },
-            ].map(g => (
-              <div key={g.label} style={{ display:"flex", alignItems:"center", gap:7,
-                fontSize:12, color:"rgba(255,255,255,.62)", fontWeight:600 }}>
-                <span style={{ fontSize:14 }}>{g.icon}</span>
-                {g.label}
-              </div>
-            ))}
-          </div>
-
-          {/* Plans */}
-          {plansLoading ? (
-            <div className="plans-grid-3">
-              {[1,2,3].map(i => (
-                <div key={i} className="ff-skeleton"
-                  style={{ background:"rgba(255,255,255,.06)", borderRadius:24, minHeight:320 }} />
-              ))}
-            </div>
-          ) : plans.length === 0 ? (
-            <div style={{ textAlign:"center", padding:"40px 20px",
-              background:"rgba(255,255,255,.04)", borderRadius:20, border:"0.5px solid rgba(255,255,255,.1)" }}>
-              <p style={{ fontSize:32, marginBottom:12 }}>🚀</p>
-              <p style={{ fontSize:16, fontWeight:700, marginBottom:8 }}>Plans launching soon</p>
-              <p style={{ fontSize:13, color:"rgba(255,255,255,.5)", marginBottom:20 }}>
-                We're putting the finishing touches on our pricing. Get notified when we launch.
-              </p>
-              <button onClick={() => nav("/access-pricing")}
-                style={{ ...jakarta, background:ORANGE, color:"#fff", border:"none",
-                  borderRadius:999, padding:"12px 28px", fontWeight:800, fontSize:12,
-                  cursor:"pointer", letterSpacing:".08em", textTransform:"uppercase",
-                  boxShadow:"0 8px 24px rgba(255,75,0,.4)" }}>
-                Get notified →
-              </button>
-            </div>
-          ) : (
-            <div className={plansGridClass}>
-              {plans.map((plan,idx) => (
-                <PricingCard key={plan.id??idx} plan={plan}
-                  highlight={plans.length===1?true:idx===Math.floor(plans.length/2)}
-                  index={idx} />
-              ))}
-            </div>
-          )}
-
-          {/* Bottom note */}
-          <p style={{ textAlign:"center", fontSize:12, color:"rgba(255,255,255,.3)",
-            marginTop:24, lineHeight:1.6 }}>
-            All major payment methods accepted · Instant activation · No hidden fees
-          </p>
         </div>
       </section>
 
@@ -961,7 +698,6 @@ export default function Homepage() {
                     <div style={{ padding:"16px 16px" }}>
                       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12 }}>
                         <p style={{ ...fraunces, fontSize:14, fontWeight:700, color:"#111", lineHeight:1.35 }}>{item.q}</p>
-                        {/* Perfect-center SVG plus/cross */}
                         <span style={{
                           width:28, height:28, borderRadius:"50%", flexShrink:0,
                           border: open ? `1.5px solid ${ORANGE}` : "1.5px solid #ddd",
@@ -1026,7 +762,7 @@ export default function Homepage() {
                   onMouseLeave={e=>{ e.currentTarget.style.transform="none"; e.currentTarget.style.opacity="1"; }}>
                   Get started
                 </button>
-                <button onClick={() => document.getElementById("pricing-sec")?.scrollIntoView({ behavior:"smooth" })}
+                <button onClick={() => nav("/access-pricing")}
                   style={{ ...jakarta, background:"transparent", color:"#fff", fontSize:12, fontWeight:700,
                     letterSpacing:".06em", border:"1.5px solid rgba(255,255,255,.38)", borderRadius:999,
                     padding:"12px 22px", cursor:"pointer", transition:"transform .18s ease, background .18s ease" }}
