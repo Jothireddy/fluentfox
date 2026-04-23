@@ -366,7 +366,7 @@ function Footer() {
           </p>
 
           <a
-            href="https://instagram.com/fluentfox.in"
+            href="https://instagram.com/fluentfox"
             target="_blank"
             rel="noopener noreferrer"
             className="ff-footer-ig"
