@@ -453,12 +453,12 @@ const Admin = () => {
     <Shell>
       {/* Header */}
       <header className="ff-header">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5">
+        <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-3 px-4 sm:px-6">
           <Brand tag="Admin" />
 
           <div className="flex items-center gap-2.5">
-            <div className="ff-pill hidden h-9 items-center gap-2 rounded-full pl-3.5 pr-1.5 sm:flex">
-              <span className="ff-fg3 text-[12px]">Credits</span>
+            <div className="ff-pill flex h-9 items-center gap-2 rounded-full pl-1.5 pr-1.5 sm:pl-3.5">
+              <span className="ff-fg3 hidden text-[12px] sm:inline">Credits</span>
               <Badge tone="lime">
                 <Icon name="zap" size={11} />
                 {credits.toLocaleString()}
@@ -475,18 +475,18 @@ const Admin = () => {
               </div>
             </div>
 
-            <Button variant="ghost" size="sm" icon="logout" onClick={handleLogout}>
-              Logout
+            <Button variant="ghost" size="sm" icon="logout" onClick={handleLogout} aria-label="Logout">
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-6 px-5 py-8">
+      <main className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 sm:space-y-6 sm:px-6 sm:py-8">
         {/* Greeting */}
         <div className="ff-in">
           <div className="ff-eyebrow">Dashboard</div>
-          <h1 className="ff-fg mt-1.5 text-[28px] font-extrabold tracking-[-0.03em]">
+          <h1 className="ff-fg mt-1.5 text-[24px] font-extrabold tracking-[-0.03em] sm:text-[28px]">
             Welcome back{firstName ? `, ${firstName}` : ""}
           </h1>
           <p className="ff-fg3 mt-1 text-[13.5px]">
@@ -495,7 +495,7 @@ const Admin = () => {
         </div>
 
         {/* Stats */}
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <StatCard label="Credits" value={credits} icon="zap" tone="lime" hint="1 credit per key" delay={0.05} />
           <StatCard
             label="Client keys"
@@ -510,7 +510,7 @@ const Admin = () => {
         </section>
 
         {/* Generate + how it works */}
-        <section className="grid gap-4 lg:grid-cols-[1.55fr_1fr]">
+        <section className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
           <div className="ff-in" style={{ animationDelay: ".24s" }}>
             <div className="ff-glass h-full p-5">
               <div className="flex items-start gap-3.5">
@@ -549,6 +549,7 @@ const Admin = () => {
                   icon="plus"
                   loading={creating}
                   disabled={credits <= 0}
+                  className="w-full sm:w-auto"
                 >
                   Generate key
                 </Button>
@@ -587,7 +588,7 @@ const Admin = () => {
 
         {/* Keys */}
         <section className="ff-in" style={{ animationDelay: ".34s" }}>
-          <div className="ff-glass p-5">
+          <div className="ff-glass p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="ff-fg text-[15px] font-bold">Client keys</h2>
@@ -598,7 +599,7 @@ const Admin = () => {
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
+              <div className="ff-chips w-full sm:w-auto">
                 {KEY_FILTERS.map(([id, label]) => (
                   <button
                     key={id}
@@ -626,7 +627,8 @@ const Admin = () => {
                   }
                 />
               ) : (
-                <div className="ff-table-wrap">
+                <>
+                <div className="ff-table-wrap hidden lg:block">
                   <table className="ff-table">
                     <thead>
                       <tr>
@@ -636,10 +638,10 @@ const Admin = () => {
                         <th>Expires in</th>
                         <th>Created</th>
                         <th>Used</th>
-                        <th className="!text-right">Action</th>
+                        <th className="ff-sticky-r !text-right">Action</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody key={keyFilter}>
                       {visibleKeys.map(({ k, s }, i) => (
                         <KeyRow
                           key={k.id}
@@ -652,6 +654,19 @@ const Admin = () => {
                     </tbody>
                   </table>
                 </div>
+
+                <div key={`m-${keyFilter}`} className="lg:hidden">
+                  {visibleKeys.map(({ k, s }, i) => (
+                    <KeyCard
+                      key={k.id}
+                      keyData={k}
+                      status={s}
+                      index={i}
+                      onRevoke={() => openRevokeConfirm(k)}
+                    />
+                  ))}
+                </div>
+                </>
               )}
             </div>
           </div>
@@ -659,7 +674,7 @@ const Admin = () => {
 
         {/* Session logs */}
         <section className="ff-in" style={{ animationDelay: ".4s" }}>
-          <div className="ff-glass p-5">
+          <div className="ff-glass p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="ff-fg text-[15px] font-bold">Session logs</h2>
@@ -677,7 +692,8 @@ const Admin = () => {
                   text="Sessions appear here as soon as a client starts an interview."
                 />
               ) : (
-                <div className="ff-table-wrap">
+                <>
+                <div className="ff-table-wrap hidden md:block">
                   <table className="ff-table">
                     <thead>
                       <tr>
@@ -720,6 +736,50 @@ const Admin = () => {
                     </tbody>
                   </table>
                 </div>
+
+                <div className="md:hidden">
+                  {logs.map((log, i) => (
+                    <div
+                      key={log.sessionId}
+                      className="ff-mcard"
+                      style={{ animationDelay: `${Math.min(i * 0.04, 0.4)}s` }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="ff-fg truncate font-semibold">{log.label}</div>
+                          <div className="ff-mono ff-fg4 text-[11px]">#{log.sessionId}</div>
+                        </div>
+                        {log.durationMinutes != null ? (
+                          <span className="ff-fg shrink-0 font-semibold tabular-nums">
+                            {log.durationMinutes}
+                            <span className="ff-fg4 ml-1 font-normal">min</span>
+                          </span>
+                        ) : (
+                          <span className="ff-fg4 shrink-0">—</span>
+                        )}
+                      </div>
+                      <div className="ff-mgrid">
+                        <div>
+                          <div className="ff-mlabel">Started</div>
+                          <div className="ff-mval">{fmtDate(log.startedAt)}</div>
+                        </div>
+                        <div>
+                          <div className="ff-mlabel">Ended</div>
+                          <div className="ff-mval">
+                            {log.endedAt ? (
+                              fmtDate(log.endedAt)
+                            ) : (
+                              <Badge tone="lime" live>
+                                Live
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                </>
               )}
             </div>
           </div>
@@ -730,7 +790,7 @@ const Admin = () => {
       <Modal open={Boolean(revokeTarget)} onClose={() => !revokeLoading && setRevokeTarget(null)}>
         {revokeTarget && (
           <>
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-3 sm:gap-4">
               <Tile icon="ban" tone="tomato" size={42} />
               <div className="min-w-0 pt-0.5">
                 <h3 className="ff-fg text-[16px] font-bold">
@@ -748,7 +808,7 @@ const Admin = () => {
               {revokeTarget.key}
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button variant="ghost" onClick={() => setRevokeTarget(null)} disabled={revokeLoading}>
                 Cancel
               </Button>
@@ -765,7 +825,7 @@ const Admin = () => {
   );
 };
 
-const KeyRow = ({ keyData, status, index, onRevoke }) => {
+function keyTiming(keyData, status) {
   const total = Math.max(
     1,
     new Date(keyData.expiresAt).getTime() - new Date(keyData.createdAt).getTime()
@@ -787,6 +847,77 @@ const KeyRow = ({ keyData, status, index, onRevoke }) => {
 
   const canRevoke = !keyData.revoked && !keyData.refunded;
   const counting = status.group !== "revoked" && status.diff > 0;
+  return { pct, expiresIn, canRevoke, counting };
+}
+
+function ExpiresCell({ status, timing }) {
+  const { counting, expiresIn, pct } = timing;
+  if (!counting) return <span className="ff-fg4">{expiresIn}</span>;
+  return (
+    <div>
+      <div className="ff-mono ff-fg text-[12px] tabular-nums">{expiresIn}</div>
+      {status.group === "active" && (
+        <div className="ff-bar mt-1.5">
+          <i style={{ width: `${pct}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+const KeyCard = ({ keyData, status, index, onRevoke }) => {
+  const timing = keyTiming(keyData, status);
+  return (
+    <div className="ff-mcard" style={{ animationDelay: `${Math.min(index * 0.04, 0.4)}s` }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="ff-fg truncate font-semibold">
+            {keyData.name || <span className="ff-fg4 font-normal">Untitled</span>}
+          </div>
+          <div className="ff-mono ff-fg4 text-[11px]">#{keyData.id}</div>
+        </div>
+        <Badge tone={status.tone} dot live={status.group === "active"}>
+          {status.label}
+        </Badge>
+      </div>
+
+      <div className="mt-3 flex items-center gap-2">
+        <code className="ff-code" title={keyData.key}>
+          {keyData.key}
+        </code>
+        <CopyButton text={keyData.key} />
+      </div>
+
+      <div className="ff-mgrid">
+        <div>
+          <div className="ff-mlabel">Expires in</div>
+          <div className="ff-mval">
+            <ExpiresCell status={status} timing={timing} />
+          </div>
+        </div>
+        <div>
+          <div className="ff-mlabel">Created</div>
+          <div className="ff-mval">{fmtDate(keyData.createdAt)}</div>
+        </div>
+        <div>
+          <div className="ff-mlabel">Used</div>
+          <div className="ff-mval">
+            {keyData.usedAt ? fmtDate(keyData.usedAt) : <span className="ff-fg4">—</span>}
+          </div>
+        </div>
+        <div className="flex items-end justify-end">
+          <Button size="sm" variant="danger" icon="ban" disabled={!timing.canRevoke} onClick={onRevoke}>
+            Revoke
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const KeyRow = ({ keyData, status, index, onRevoke }) => {
+  const timing = keyTiming(keyData, status);
+  const { canRevoke } = timing;
 
   return (
     <tr style={{ animationDelay: `${Math.min(index * 0.03, 0.3)}s` }}>
@@ -813,24 +944,13 @@ const KeyRow = ({ keyData, status, index, onRevoke }) => {
       </td>
 
       <td>
-        {counting ? (
-          <div>
-            <div className="ff-mono ff-fg text-[12px] tabular-nums">{expiresIn}</div>
-            {status.group === "active" && (
-              <div className="ff-bar mt-1.5">
-                <i style={{ width: `${pct}%` }} />
-              </div>
-            )}
-          </div>
-        ) : (
-          <span className="ff-fg4">{expiresIn}</span>
-        )}
+        <ExpiresCell status={status} timing={timing} />
       </td>
 
       <td>{fmtDate(keyData.createdAt)}</td>
       <td>{keyData.usedAt ? fmtDate(keyData.usedAt) : <span className="ff-fg4">—</span>}</td>
 
-      <td className="!text-right">
+      <td className="ff-sticky-r !text-right">
         <Button size="sm" variant="danger" icon="ban" disabled={!canRevoke} onClick={onRevoke}>
           Revoke
         </Button>

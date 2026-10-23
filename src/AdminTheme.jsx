@@ -136,7 +136,10 @@ const CSS = `
 .ff-bar > i{display:block;height:100%;border-radius:inherit;background:var(--lime);transition:width 1s linear}
 
 /* Table */
-.ff-table-wrap{overflow-x:auto;margin:0 -4px}
+.ff-table-wrap{overflow-x:auto;margin:0 -4px;-webkit-overflow-scrolling:touch}
+/* Pin the action column so it never gets cut off, even if the table scrolls */
+.ff-table .ff-sticky-r{position:sticky;right:0;z-index:1;background:linear-gradient(90deg,rgba(20,19,26,0),rgba(20,19,26,.92) 18px)}
+.ff-table thead .ff-sticky-r{background:linear-gradient(90deg,rgba(20,19,26,0),rgba(20,19,26,.92) 18px)}
 .ff-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
 .ff-table th{text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg4);
   padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -172,8 +175,55 @@ const CSS = `
   background:rgba(24,23,31,.9);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border:1px solid var(--line2);
   box-shadow:0 24px 60px -20px rgba(0,0,0,.9);animation:ff-toast-in .42s var(--ease) both}
 
+/* Stat card extras: accent line + glow follow */
+.ff-stat{position:relative;overflow:hidden}
+.ff-stat::before{content:"";position:absolute;left:16px;right:16px;top:0;height:2px;border-radius:0 0 4px 4px;background:var(--accent,var(--lime));
+  transform:scaleX(0);transform-origin:left;animation:ff-grow .9s var(--ease) both;animation-delay:calc(var(--d,0s) + .25s);opacity:.8}
+.ff-stat::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s ease;
+  background:radial-gradient(260px circle at var(--mx,50%) var(--my,0%),rgba(199,184,245,.12),transparent 60%)}
+.ff-stat:hover::after{opacity:1}
+.ff-stat:hover .ff-tile{transform:rotate(-8deg) scale(1.08)}
+.ff-tile{transition:transform .35s var(--ease)}
+
+/* Chips: pop when selected, scroll sideways on phones */
+.ff-chip[data-on="true"]{animation:ff-chip-pop .35s var(--ease)}
+.ff-chips{display:flex;gap:6px;flex-wrap:wrap}
+.ff-btn-danger:hover:not(:disabled) svg{transform:rotate(90deg)}
+
+/* Progress bar shimmer */
+.ff-bar > i{position:relative;overflow:hidden}
+.ff-bar > i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);animation:ff-bar-shine 2.2s ease-in-out infinite}
+
+/* Mobile list cards (replace tables on small screens) */
+.ff-mcard{padding:14px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.18);
+  animation:ff-fade-up .45s var(--ease) backwards;transition:border-color .2s ease,background .2s ease,transform .2s var(--ease)}
+.ff-mcard:active{transform:scale(.99)}
+.ff-mcard + .ff-mcard{margin-top:10px}
+.ff-mgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:12px}
+.ff-mlabel{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg4)}
+.ff-mval{margin-top:3px;font-size:12.5px;color:var(--fg2)}
+.ff-mcard .ff-code{max-width:100%;flex:1;min-width:0}
+
+/* Small-screen tweaks */
+@media (max-width:640px){
+  .ff-root{font-size:13.5px}
+  .ff-chips{flex-wrap:nowrap;overflow-x:auto;margin:0 -20px;padding:2px 20px;scrollbar-width:none}
+  .ff-chips::-webkit-scrollbar{display:none}
+  .ff-chip{flex-shrink:0}
+  .ff-toast-wrap{left:12px;right:12px;bottom:12px}
+  .ff-toast{min-width:0;max-width:none;width:100%}
+  .ff-backdrop{align-items:flex-end;padding:12px}
+  .ff-modal{padding:18px;animation:ff-sheet .38s var(--ease) both}
+  .ff-kpi{font-size:24px}
+  .ff-aurora span:nth-child(1){width:380px;height:320px}
+  .ff-aurora span:nth-child(2){width:300px;height:300px}
+}
+
 /* Motion */
 .ff-in{animation:ff-fade-up .55s var(--ease) backwards}
+@keyframes ff-chip-pop{0%{transform:scale(.9)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+@keyframes ff-bar-shine{0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)}}
+@keyframes ff-sheet{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
 .ff-spin{animation:ff-spin .7s linear infinite}
 .ff-float{animation:ff-float 7s ease-in-out infinite}
 @keyframes ff-fade-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -363,16 +413,61 @@ export function Tile({ icon, tone = "lime", size = 36 }) {
   );
 }
 
+/* Animates a number from its previous value to the new one */
+function useCountUp(target, duration = 900) {
+  const [val, setVal] = useState(0);
+  const fromRef = useRef(0);
+
+  useEffect(() => {
+    if (typeof target !== "number") return;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const from = fromRef.current;
+    const dur = reduce || from === target ? 0 : duration;
+    let raf;
+    const start = performance.now();
+    const tick = (t) => {
+      const p = dur === 0 ? 1 : Math.min(1, (t - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setVal(Math.round(from + (target - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else fromRef.current = target;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      fromRef.current = target;
+    };
+  }, [target, duration]);
+
+  return typeof target === "number" ? val : target;
+}
+
+const TONE_VAR = { lime: "var(--lime)", lav: "var(--lav)", tomato: "var(--tomato)", muted: "var(--fg3)" };
+
 export function StatCard({ label, value, icon, tone = "lime", hint, delay = 0 }) {
+  const shown = useCountUp(value);
+
+  function onMove(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+    e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+  }
+
   return (
     <div className="ff-in" style={{ animationDelay: `${delay}s` }}>
-      <div className="ff-glass ff-lift h-full p-4">
+      <div
+        className="ff-glass ff-lift ff-stat h-full p-4 sm:p-5"
+        style={{ "--accent": TONE_VAR[tone], "--d": `${delay}s` }}
+        onMouseMove={onMove}
+      >
         <div className="flex items-center justify-between gap-3">
           <span className="ff-eyebrow">{label}</span>
           <Tile icon={icon} tone={tone} size={30} />
         </div>
         <div className="ff-kpi mt-3">
-          {typeof value === "number" ? value.toLocaleString("en-US") : value}
+          {typeof shown === "number" ? shown.toLocaleString("en-US") : shown}
         </div>
         {hint && <div className="ff-fg4 mt-1.5 text-[11.5px]">{hint}</div>}
       </div>

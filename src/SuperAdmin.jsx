@@ -236,7 +236,7 @@ const SuperAdmin = () => {
   return (
     <Shell>
       <header className="ff-header">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5">
+        <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-3 px-4 sm:px-6">
           <Brand tag="Super Admin" />
 
           <div className="flex items-center gap-2.5">
@@ -252,18 +252,18 @@ const SuperAdmin = () => {
               </div>
             </div>
 
-            <Button variant="ghost" size="sm" icon="logout" onClick={handleLogout}>
-              Logout
+            <Button variant="ghost" size="sm" icon="logout" onClick={handleLogout} aria-label="Logout">
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-6 px-5 py-8">
+      <main className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 sm:space-y-6 sm:px-6 sm:py-8">
         {/* Greeting */}
         <div className="ff-in">
           <div className="ff-eyebrow">Control center</div>
-          <h1 className="ff-fg mt-1.5 text-[28px] font-extrabold tracking-[-0.03em]">Admins & invite keys</h1>
+          <h1 className="ff-fg mt-1.5 text-[24px] sm:text-[28px] font-extrabold tracking-[-0.03em]">Admins & invite keys</h1>
           <p className="ff-fg3 mt-1 text-[13.5px]">
             Create invite keys, onboard admins and allocate their credits.
           </p>
